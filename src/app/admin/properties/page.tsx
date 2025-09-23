@@ -22,8 +22,14 @@ interface Property {
     isActive: boolean;
   }>;
   seller?: {
+    _id?: string;
     name: string;
     email: string;
+    phone?: string;
+    role?: string;
+    joinedDate?: string;
+    totalProperties?: number;
+    profileImage?: string;
   };
   createdAt: string;
   address: string;
@@ -46,6 +52,8 @@ const PropertiesPage = () => {
   console.log("🚀 ~ PropertiesPage ~ selectedProperty:", selectedProperty);
   const [selectedAgent, setSelectedAgent] = useState("");
   const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showSellerModal, setShowSellerModal] = useState(false);
+  const [selectedSeller, setSelectedSeller] = useState<Property['seller'] | null>(null);
   const [notification, setNotification] = useState<{
     type: "success" | "error";
     message: string;
@@ -572,6 +580,17 @@ const PropertiesPage = () => {
                         <div className="text-sm text-gray-500">
                           {property.seller ? property.seller.email : "N/A"}
                         </div>
+                        {property.seller && (
+                          <button
+                            onClick={() => {
+                              setSelectedSeller(property.seller);
+                              setShowSellerModal(true);
+                            }}
+                            className="mt-1 text-blue-600 hover:text-blue-900 text-xs font-medium"
+                          >
+                            View
+                          </button>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                         {property.status === "pending" && (
@@ -650,7 +669,6 @@ const PropertiesPage = () => {
                           onClick={() => {
                             console.log("🔍 Assign Agent Button Clicked");
                             console.log("📋 Property Object:", property);
-                            console.log("🆔 Property ID:", property._id);
                             console.log("📝 Property Title:", property.title);
 
                             if (!property.id) {
@@ -854,6 +872,64 @@ const PropertiesPage = () => {
                   {assignAgentMutation.isPending
                     ? "Assigning..."
                     : "Assign Agent"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Seller Details Modal */}
+        {showSellerModal && selectedSeller && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Seller Details
+              </h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Name</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedSeller.name}</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Email</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedSeller.email}</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Phone</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedSeller.phone || 'Not provided'}
+                  </p>
+                </div>
+                
+                {selectedSeller.joinedDate && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Joined Date</label>
+                    <p className="mt-1 text-sm text-gray-900">
+                      {new Date(selectedSeller.joinedDate).toLocaleDateString()}
+                    </p>
+                  </div>
+                )}
+                
+                {selectedSeller.totalProperties && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Total Properties</label>
+                    <p className="mt-1 text-sm text-gray-900">{selectedSeller.totalProperties}</p>
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex justify-end mt-6">
+                <button
+                  onClick={() => {
+                    setShowSellerModal(false);
+                    setSelectedSeller(null);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                >
+                  Close
                 </button>
               </div>
             </div>

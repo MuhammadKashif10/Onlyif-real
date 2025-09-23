@@ -792,7 +792,7 @@ const createPropertyWithFiles = async (req, res) => {
     // Check for missing required fields
     Object.entries(requiredFields).forEach(([key, label]) => {
       const value = req.body[key];
-      if (!value && value !== 0) {
+      if (!value && value !== 0 && value !== '0') {
         missingFields.push(label);
       }
     });
@@ -845,6 +845,13 @@ const createPropertyWithFiles = async (req, res) => {
       const zipRegex = /^\d{5}(-\d{4})?$/;
       if (!zipRegex.test(zipCode)) {
         invalidFields.push('ZIP code must be in format 12345 or 12345-6789');
+      }
+
+      // Validate property type
+      const validPropertyTypes = ['single-family', 'condo', 'townhouse', 'multi-family', 'land', 'commercial', 'apartment'];
+      const normalizedPropertyType = propertyType.toLowerCase().replace(/\s+/g, '-');
+      if (!validPropertyTypes.includes(normalizedPropertyType)) {
+        invalidFields.push('Property type must be one of: ' + validPropertyTypes.join(', '));
       }
 
       if (invalidFields.length > 0) {

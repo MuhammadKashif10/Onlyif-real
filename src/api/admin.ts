@@ -29,8 +29,9 @@ export const adminApi = {
   deleteUser: (userId: string) => 
     apiClient.delete(`/admin/users/${userId}`),
 
-  // Properties - Updated to use /properties instead of /api/properties
-  getProperties: async (params?: { page?: number; limit?: number; status?: string; search?: string }) => {
+  // Properties - Updated to use /admin/properties for admin-specific functionality
+  // Properties - Use the correct /properties endpoint that actually works
+  getProperties: async (params?: { page?: number; limit?: 1000; status?: string; search?: string }) => {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
@@ -45,6 +46,12 @@ export const adminApi = {
     console.log('🔄 Admin API: Full URL will be:', `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}${endpoint}`);
     
     try {
+      // Add a test to check if backend is reachable
+      const testResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/health`);
+      if (!testResponse.ok) {
+        throw new Error('Backend server is not responding. Please check if the backend is running on port 5000.');
+      }
+      
       const response = await apiClient.get(endpoint);
       console.log('✅ Admin API: Properties response:', response);
       console.log('📦 Admin API: Response data structure:', {
@@ -60,8 +67,21 @@ export const adminApi = {
       console.error('❌ Admin API: Error details:', {
         message: error.message,
         endpoint: endpoint,
-        isNetworkError: error.isNetworkError
+        isNetworkError: error.isNetworkError,
+        status: error.status
       });
+      
+      // Provide more specific error messages
+      if (error.message.includes('Backend server is not responding')) {
+        throw new Error('Backend server is not running. Please start the backend server on port 5000.');
+      } else if (error.isNetworkError) {
+        throw new Error('Cannot connect to backend server. Please check if the backend is running and accessible.');
+      } else if (error.status === 401) {
+        throw new Error('Authentication failed. Please log in again.');
+      } else if (error.status === 403) {
+        throw new Error('Access denied. Admin privileges required.');
+      }
+      
       throw error;
     }
   },
