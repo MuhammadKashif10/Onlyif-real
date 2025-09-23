@@ -367,15 +367,11 @@ const createAgent = async (req, res) => {
       );
     }
 
-    // Hash password
-    const saltRounds = 12;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-    // Create new agent
+    // Create new agent (password will be hashed by pre-save middleware)
     const newAgent = new User({
       name: name.trim(),
       email: email.toLowerCase().trim(),
-      password: hashedPassword,
+      password: password, // Remove manual hashing - let pre-save middleware handle it
       role: 'agent',
       isActive: true,
       experience: experience ? experience.trim() : null,

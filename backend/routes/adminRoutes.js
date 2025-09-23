@@ -6,11 +6,13 @@ const { asyncHandler } = require('../middleware/errorHandler');
 const {
   getAllUsers,
   toggleUserSuspension,
+  updateUserStatus,
   deleteUser,
   deleteProperty,
   resetAssignments,
   getTermsLogs,
-  changeAdminPassword
+  changeAdminPassword,
+  getUserStats
 } = require('../controllers/adminController');
 const Property = require('../models/Property');
 const User = require('../models/User');
@@ -20,7 +22,9 @@ const Transaction = require('../models/Transaction');
 router.use(authMiddleware, allowAdmin);
 
 router.get('/users', asyncHandler(getAllUsers));
+router.get('/users/stats', asyncHandler(getUserStats));
 router.patch('/users/:id/suspend', asyncHandler(toggleUserSuspension));
+router.patch('/users/:id/status', asyncHandler(updateUserStatus));
 router.delete('/users/:id', asyncHandler(deleteUser));
 router.delete('/properties/:id', asyncHandler(deleteProperty));
 router.post('/assignments/reset', asyncHandler(resetAssignments));
@@ -346,12 +350,27 @@ router.get('/stats/users', asyncHandler(async (req, res) => {
 router.get('/agents', asyncHandler(async (req, res) => {
   try {
     const agents = await User.find({ role: 'agent', isDeleted: false })
-      .select('name email phone isActive createdAt')
+      .select('name email phone isActive isSuspended createdAt agentProfile')
       .sort({ createdAt: -1 });
+    
+    // Transform the data to match frontend expectations
+    const transformedAgents = agents.map(agent => ({
+      id: agent._id,
+      name: agent.name,
+      email: agent.email,
+      phone: agent.phone || agent.agentProfile?.phone || '',
+      licenseNumber: agent.agentProfile?.licenseNumber || '',
+      status: agent.isSuspended ? 'suspended' : (agent.isActive ? 'active' : 'pending'),
+      joinedDate: agent.createdAt ? new Date(agent.createdAt).toLocaleDateString() : '',
+      totalListings: 0, // You can calculate this from properties
+      totalSales: 0, // You can calculate this from transactions
+      rating: 5, // Default rating
+      profileImage: agent.avatar || ''
+    }));
     
     res.json({
       success: true,
-      data: agents
+      data: transformedAgents
     });
   } catch (error) {
     console.error('Error fetching agents:', error);
@@ -662,7 +681,131 @@ router.patch('/properties/:id', asyncHandler(async (req, res) => {
   }
 }));
 
-// Remove this line:
-// router.post('/agents', asyncHandler(createAgent));
+// Add agent status update route
+router.patch('/agents/:id/status', asyncHandler(async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    
+    // Validate status
+    const validStatuses = ['pending', 'approved', 'rejected', 'suspended'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid status. Must be one of: pending, approved, rejected, suspended'
+      });
+    }
+    
+    // Map status to User model fields
+    let updateFields = {};
+    switch (status) {
+      case 'suspended':
+        updateFields = {
+          isSuspended: true,
+          isActive: false,
+          suspendedAt: new Date(),
+          suspendedBy: req.user.id
+        };
+        break;
+      case 'approved':
+        updateFields = {
+          isSuspended: false,
+          isActive: true,
+          suspendedAt: null,
+          suspendedBy: null,
+          suspensionReason: null
+        };
+        break;
+      case 'pending':
+        updateFields = {
+          isSuspended: false,
+          isActive: false,
+          suspendedAt: null,
+          suspendedBy: null,
+          suspensionReason: null
+        };
+        break;
+      case 'rejected':
+        updateFields = {
+          isSuspended: true,
+          isActive: false,
+          suspendedAt: new Date(),
+          suspendedBy: req.user.id,
+          suspensionReason: 'Rejected by admin'
+        };
+        break;
+    }
+    
+    // Find and update the agent - ONLY agents, not other user types
+    const agent = await User.findOneAndUpdate(
+      { _id: id, role: 'agent', isDeleted: false },
+      updateFields,
+      { new: true }
+    ).select('name email isActive isSuspended role');
+    
+    if (!agent) {
+      return res.status(404).json({
+        success: false,
+        message: 'Agent not found or user is not an agent'
+      });
+    }
+    
+    // Transform response to match frontend expectations
+    const transformedAgent = {
+      id: agent._id,
+      name: agent.name,
+      email: agent.email,
+      status: agent.isSuspended ? 'suspended' : (agent.isActive ? 'approved' : 'pending')
+    };
+    
+    res.json({
+      success: true,
+      data: transformedAgent,
+      message: `Agent status updated to ${status} successfully`
+    });
+  } catch (error) {
+    console.error('Error updating agent status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update agent status'
+    });
+  }
+}));
+
+// Add agent delete route
+router.delete('/agents/:id', asyncHandler(async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Soft delete the agent - ONLY agents, not other user types
+    const agent = await User.findOneAndUpdate(
+      { _id: id, role: 'agent', isDeleted: false },
+      { 
+        isDeleted: true,
+        deletedAt: new Date(),
+        deletedBy: req.user.id
+      },
+      { new: true }
+    );
+    
+    if (!agent) {
+      return res.status(404).json({
+        success: false,
+        message: 'Agent not found or user is not an agent'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Agent deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting agent:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete agent'
+    });
+  }
+}));
 
 module.exports = router;

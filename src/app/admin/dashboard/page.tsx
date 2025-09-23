@@ -173,7 +173,7 @@ export default function AdminDashboardPage() {
         {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatsCard
-            title="Total Properties"
+            title="OnlyIf Properties"
             value={dashboardData?.data?.totalProperties || 0}
             description="Properties listed on platform"
             icon={<Building className="h-4 w-4 text-muted-foreground" />}
@@ -181,7 +181,7 @@ export default function AdminDashboardPage() {
             error={dashboardError ? 'Failed to load' : undefined}
           />
           <StatsCard
-            title="Total Agents"
+            title="OnlyIf Agents"
             value={dashboardData?.data?.totalAgents || 0}
             description="Registered real estate agents"
             icon={<UserCheck className="h-4 w-4 text-muted-foreground" />}
@@ -189,7 +189,7 @@ export default function AdminDashboardPage() {
             error={dashboardError ? 'Failed to load' : undefined}
           />
           <StatsCard
-            title="Total Users"
+            title="OnlyIf Users"
             value={dashboardData?.data?.totalUsers || 0}
             description="Registered buyers and sellers"
             icon={<Users className="h-4 w-4 text-muted-foreground" />}

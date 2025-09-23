@@ -157,8 +157,8 @@ class ApiClient {
     if (obj && typeof obj === 'object') {
       const transformed = { ...obj };
       if (transformed._id) {
-        transformed.id = transformed.id;
-        delete transformed.id;
+        transformed.id = transformed._id;
+        delete transformed._id;
       }
       Object.keys(transformed).forEach(key => {
         transformed[key] = this.transformIds(transformed[key]);

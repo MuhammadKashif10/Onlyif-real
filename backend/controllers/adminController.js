@@ -169,7 +169,59 @@ const toggleUserSuspension = async (req, res) => {
   }
 };
 
-// @desc    Delete user
+// @desc    Update user status
+// @route   PATCH /api/admin/users/:id/status
+// @access  Private (Admin only)
+const updateUserStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json(
+        errorResponse('User not found', 404)
+      );
+    }
+
+    // Prevent admin accounts from being suspended
+    if (user.role === 'admin') {
+      return res.status(403).json(
+        errorResponse('Admin accounts cannot be suspended or modified', 403)
+      );
+    }
+
+    // Update status based on the request
+    if (status === 'suspended') {
+      user.isSuspended = true;
+      user.isActive = false;
+      user.suspendedAt = new Date();
+      user.suspendedBy = req.user.id;
+    } else if (status === 'active') {
+      user.isSuspended = false;
+      user.isActive = true;
+      user.suspendedAt = null;
+      user.suspendedBy = null;
+      user.suspensionReason = null;
+    }
+
+    await user.save();
+
+    res.json(
+      successResponse(
+        { user: { id: user._id, status: user.isSuspended ? 'suspended' : 'active' } },
+        `User ${status === 'suspended' ? 'suspended' : 'activated'} successfully`
+      )
+    );
+  } catch (error) {
+    console.error('Error updating user status:', error);
+    res.status(500).json(
+      errorResponse('Server error while updating user status', 500)
+    );
+  }
+};
+
+// @desc    Delete user (updated)
 // @route   DELETE /api/admin/users/:id
 // @access  Private (Admin only)
 const deleteUser = async (req, res) => {
@@ -183,8 +235,17 @@ const deleteUser = async (req, res) => {
       );
     }
 
+    // Prevent admin accounts from being deleted
+    if (user.role === 'admin') {
+      return res.status(403).json(
+        errorResponse('Admin accounts cannot be deleted', 403)
+      );
+    }
+
     // Soft delete by setting isDeleted flag
     user.isDeleted = true;
+    user.deletedAt = new Date();
+    user.deletedBy = req.user.id;
     await user.save();
 
     res.json(
@@ -294,13 +355,61 @@ const getTermsLogs = async (req, res) => {
   }
 };
 
+// @desc    Get user statistics for dashboard
+// @route   GET /api/admin/users/stats
+// @access  Private (Admin only)
+const getUserStats = async (req, res) => {
+  try {
+    // Get total users count (buyers and sellers only, excluding agents and admins)
+    const totalUsers = await User.countDocuments({ 
+      role: { $in: ['buyer', 'seller'] }, 
+      isDeleted: false 
+    });
+    
+    // Get buyers count
+    const buyers = await User.countDocuments({ 
+      role: 'buyer', 
+      isDeleted: false 
+    });
+    
+    // Get sellers count
+    const sellers = await User.countDocuments({ 
+      role: 'seller', 
+      isDeleted: false 
+    });
+    
+    // Get suspended users count (buyers and sellers only)
+    const suspended = await User.countDocuments({ 
+      role: { $in: ['buyer', 'seller'] },
+      isSuspended: true,
+      isDeleted: false 
+    });
+
+    res.json(
+      successResponse({
+        totalUsers,
+        buyers,
+        sellers,
+        suspended
+      }, 'User stats retrieved successfully')
+    );
+  } catch (error) {
+    console.error('Error retrieving user stats:', error);
+    res.status(500).json(
+      errorResponse('Server error retrieving user stats', 500)
+    );
+  }
+};
+
 module.exports = {
   getDashboardStats,
   getAllUsers,
   changeAdminPassword,
   toggleUserSuspension,
+  updateUserStatus,
   deleteUser,
   deleteProperty,
   resetAssignments,
-  getTermsLogs
+  getTermsLogs,
+  getUserStats
 };

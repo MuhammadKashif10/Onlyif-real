@@ -98,7 +98,11 @@ export default function AgentsPage() {
 
   const handleStatusChange = async (agentId: string, newStatus: string) => {
     try {
-      await adminApi.updateAgentStatus(agentId, newStatus);
+      // Map frontend status to backend status
+      const backendStatus = newStatus === 'active' ? 'approved' : newStatus;
+      await adminApi.updateAgentStatus(agentId, backendStatus);
+      
+      // Update local state
       setAgents(agents.map(agent => 
         agent.id === agentId ? { ...agent, status: newStatus as Agent['status'] } : agent
       ));
@@ -341,23 +345,15 @@ export default function AgentsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex space-x-2">
-                          {agent.status === 'pending' && (
-                            <>
-                              <button
-                                onClick={() => handleStatusChange(agent.id, 'approved')}
-                                className="text-green-600 hover:text-green-900"
-                              >
-                                Approve
-                              </button>
-                              <button
-                                onClick={() => handleStatusChange(agent.id, 'rejected')}
-                                className="text-red-600 hover:text-red-900"
-                              >
-                                Reject
-                              </button>
-                            </>
-                          )}
-                          {agent.status === 'approved' && (
+                          {/* Suspend/Active toggle */}
+                          {agent.status === 'suspended' ? (
+                            <button
+                              onClick={() => handleStatusChange(agent.id, 'approved')}
+                              className="text-green-600 hover:text-green-900"
+                            >
+                              Activate
+                            </button>
+                          ) : (
                             <button
                               onClick={() => handleStatusChange(agent.id, 'suspended')}
                               className="text-yellow-600 hover:text-yellow-900"
@@ -365,14 +361,8 @@ export default function AgentsPage() {
                               Suspend
                             </button>
                           )}
-                          {agent.status === 'suspended' && (
-                            <button
-                              onClick={() => handleStatusChange(agent.id, 'approved')}
-                              className="text-green-600 hover:text-green-900"
-                            >
-                              Reactivate
-                            </button>
-                          )}
+                          
+                          {/* View button */}
                           <button
                             onClick={() => {
                               setSelectedAgent(agent);
@@ -382,6 +372,8 @@ export default function AgentsPage() {
                           >
                             View
                           </button>
+                          
+                          {/* Delete button */}
                           <button
                             onClick={() => handleDeleteAgent(agent.id)}
                             className="text-red-600 hover:text-red-900"

@@ -1,6 +1,5 @@
 import { apiClient } from '../lib/api-client';
 
-// Add these new API methods to the existing admin.ts file
 export const adminApi = {
   // Dashboard
   getDashboardStats: () => apiClient.get('/admin/dashboard/stats'),
@@ -18,8 +17,17 @@ export const adminApi = {
     return apiClient.get(endpoint);
   },
 
+  getUserStats: () => apiClient.get('/admin/users/stats'),
+
   suspendUser: (userId: string) => apiClient.patch(`/admin/users/${userId}/suspend`),
   unsuspendUser: (userId: string) => apiClient.patch(`/admin/users/${userId}/unsuspend`),
+  
+  // New methods for user status management
+  updateUserStatus: (userId: string, status: 'active' | 'suspended') => 
+    apiClient.patch(`/admin/users/${userId}/status`, { status }),
+  
+  deleteUser: (userId: string) => 
+    apiClient.delete(`/admin/users/${userId}`),
 
   // Properties - Updated to use /properties instead of /api/properties
   getProperties: async (params?: { page?: number; limit?: number; status?: string; search?: string }) => {
@@ -78,6 +86,12 @@ export const adminApi = {
     return apiClient.get(endpoint);
   },
 
+  updateAgentStatus: (agentId: string, status: string) => 
+    apiClient.patch(`/admin/agents/${agentId}/status`, { status }),
+
+  deleteAgent: (agentId: string) => 
+    apiClient.delete(`/admin/agents/${agentId}`),
+
   assignAgent: (propertyId: string, agentId: string) => 
     apiClient.patch(`/admin/properties/${propertyId}/assign-agent`, { agentId }),
 
@@ -112,5 +126,43 @@ export const adminApi = {
 
   // Agents
   createAgent: (data: { name: string; email: string; password: string; experience?: string; location?: string }) => 
-    apiClient.post('/agents', { ...data, role: 'agent' })
+    apiClient.post('/agents', { ...data, role: 'agent' }),
+  
+  updateAgentStatus: (agentId: string, status: string) => 
+    apiClient.patch(`/admin/agents/${agentId}/status`, { status }),
+  
+  deleteAgent: (agentId: string) => 
+    apiClient.delete(`/admin/agents/${agentId}`),
+
+  assignAgent: (propertyId: string, agentId: string) => 
+    apiClient.patch(`/admin/properties/${propertyId}/assign-agent`, { agentId }),
+
+  // Payments
+  getPayments: (params?: { page?: number; limit?: number }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    
+    const queryString = queryParams.toString();
+    const endpoint = queryString ? `/admin/payments?${queryString}` : '/admin/payments';
+    return apiClient.get(endpoint);
+  },
+
+  getMonthlyRevenue: () => apiClient.get('/admin/payments/monthly-revenue'),
+
+  // Settings
+  getSettings: () => apiClient.get('/admin/settings'),
+  updateSettings: (settings: any) => apiClient.put('/admin/settings', settings),
+
+  // Auth
+  changePassword: (data: { currentPassword: string; newPassword: string }) => 
+    apiClient.post('/admin/change-password', data),
+
+  // Stats
+  getPropertiesCount: () => apiClient.get('/admin/stats/properties'),
+  getAgentsCount: () => apiClient.get('/admin/stats/agents'),
+  getUsersCount: () => apiClient.get('/admin/stats/users'),
+
+  // Activity
+  getRecentActivity: () => apiClient.get('/admin/activity'),
 };
