@@ -14,13 +14,15 @@ interface MapListingsLayoutProps {
   showPagination?: boolean;
   itemsPerPage?: number;
   featuredOnly?: boolean;
+  showMap?: boolean; // Add option to show/hide map
 }
 
 export default function MapListingsLayout({
   showFilters = true,
   showPagination = true,
   itemsPerPage = 12,
-  featuredOnly = false
+  featuredOnly = false,
+  showMap = false // Default to false for full width
 }: MapListingsLayoutProps) {
   const router = useRouter();
   // Fix: Access properties from state object
@@ -127,9 +129,9 @@ export default function MapListingsLayout({
   }
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6">
-      {/* Left Side - Filters and Listings */}
-      <div className="flex-1">
+    <div className={showMap ? "flex flex-col lg:flex-row gap-6" : "w-full"}>
+      {/* Main Content - Filters and Listings */}
+      <div className={showMap ? "flex-1" : "w-full"}>
         {/* Filters */}
         {showFilters && (
           <div className="mb-6">
@@ -148,9 +150,12 @@ export default function MapListingsLayout({
           {featuredOnly && ' (Featured only)'}
         </div>
 
-        {/* Property Grid */}
+        {/* Property Grid - Full Width */}
         {currentProperties.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className={`grid gap-6 ${showMap 
+            ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" 
+            : "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-4"
+          }`}>
             {currentProperties.map((property) => {
               if (!isValidProperty(property)) {
                 console.warn('Invalid property object:', property);
@@ -200,17 +205,19 @@ export default function MapListingsLayout({
         )}
       </div>
 
-      {/* Right Side - Map */}
-      <div className="lg:w-1/2">
-        <div className="sticky top-4">
-          <PropertyMap
-            properties={currentProperties}
-            hoveredPropertyId={hoveredPropertyId}
-            onPropertyHover={handlePropertyCardHover}
-            onPropertyClick={handleViewDetails}
-          />
+      {/* Right Side - Map (only show if showMap is true) */}
+      {showMap && (
+        <div className="lg:w-1/2">
+          <div className="sticky top-4">
+            <PropertyMap
+              properties={currentProperties}
+              hoveredPropertyId={hoveredPropertyId}
+              onPropertyHover={handlePropertyCardHover}
+              onPropertyClick={handleViewDetails}
+            />
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

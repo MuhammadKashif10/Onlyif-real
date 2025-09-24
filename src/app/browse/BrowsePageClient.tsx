@@ -105,7 +105,7 @@ export default function BrowsePageClient() {
 
       {/* Header */}
       <section className="bg-gray-50 pt-4 sm:pt-6 md:pt-8 pb-8" aria-labelledby="browse-homes-heading">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
           <header className="text-center">
             <h1 id="browse-homes-heading" className="text-4xl font-bold text-gray-900 sm:text-5xl mb-4">
               Browse Homes for Sale
@@ -123,15 +123,16 @@ export default function BrowsePageClient() {
         </div>
       </section>
 
-      {/* Map + Listings Layout */}
+      {/* Full Width Listings Layout */}
       <section className="py-8" aria-labelledby="property-results-heading">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
           <h2 id="property-results-heading" className="sr-only">Property Search Results</h2>
           <MapListingsLayout
             showFilters={true}
             showPagination={true}
             itemsPerPage={100}
             featuredOnly={false}
+            showMap={false}
           />
         </div>
       </section>

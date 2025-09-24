@@ -10,6 +10,8 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // Create checkout session
 router.post('/checkout/:propertyId', authMiddleware, async (req, res) => {
+  console.log(process.env.STRIPE_WEBHOOK_SECRET,`++++++`)
+
   try {
     const { propertyId } = req.params;
     console.log("🚀 ~ propertyId:", propertyId)
@@ -43,17 +45,30 @@ router.post('/checkout/:propertyId', authMiddleware, async (req, res) => {
       mode: 'payment',
       payment_method_types: ['card'],
       line_items: [
-        {
-          price_data: {
-            currency: 'usd',
-            unit_amount: 4900, // $49
-            product_data: {
-              name: `Access property: ${property.title}`
-            }
-          },
-          quantity: 1
-        }
-      ],
+  {
+    price_data: {
+      currency: 'aud', // Australian Dollars
+      unit_amount: 4900, // 49 AUD (amount in cents)
+      product_data: {
+        name: `Access property: ${property.title}`
+      }
+    },
+    quantity: 1
+  }
+],
+
+      // line_items: [
+      //   {
+      //     price_data: {
+      //       currency: 'usd',
+      //       unit_amount: 4900, // $49
+      //       product_data: {
+      //         name: `Access property: ${property.title}`
+      //       }
+      //     },
+      //     quantity: 1
+      //   }
+      // ],
       success_url: `${process.env.FRONTEND_URL}/property/${propertyId}`,
       cancel_url: `${process.env.FRONTEND_URL}/property/${propertyId}?canceled=true`,
       metadata: {

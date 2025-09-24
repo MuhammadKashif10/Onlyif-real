@@ -8,7 +8,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 router.post('/', async (req, res) => {
   const sig = req.headers['stripe-signature'];
 console.log(req.body,"+++++++++++++++")
-
+console.log(process.env.STRIPE_WEBHOOK_SECRET)
   try {
     // req.body is a Buffer here 👇
     const event = stripe.webhooks.constructEvent(

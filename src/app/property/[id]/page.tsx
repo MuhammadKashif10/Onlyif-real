@@ -49,21 +49,13 @@ export default function PropertyDetailsPage() {
           }
         } else if (response && response.data && !response.success) {
           // Handle case where response.data exists but success is false
-          setError(response.message || 'Property not found');
-        } else if (response && typeof response === 'object' && response.id) {
-          // Handle case where response is the property object directly
-          setProperty(response);
-          
-          // If property has agent info, set it directly
-          if (response.agent) {
-            setAgent(response.agent);
-          }
+          setError(response.message || 'Failed to load property');
         } else {
           setError('Property not found');
         }
       } catch (err) {
         console.error('Error fetching property:', err);
-        setError('Failed to load property details. Please try again.');
+        setError('Failed to load property. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -73,32 +65,43 @@ export default function PropertyDetailsPage() {
   }, [propertyId]);
 
   const handleContactAgent = async () => {
-    if (property?.agent) {
-      // If agent info is already available from property data
-      setIsContactModalOpen(true);
-    } else {
-      // If we need to fetch agent info separately (future enhancement)
-      setIsContactModalOpen(true);
+    if (!property?.agent && !agent) {
+      // Try to fetch agent info if not available
+      if (property?.agentId) {
+        setAgentLoading(true);
+        try {
+          const agentResponse = await agentsApi.getAgentById(property.agentId);
+          if (agentResponse && agentResponse.success && agentResponse.data) {
+            setAgent(agentResponse.data);
+          }
+        } catch (err) {
+          console.error('Error fetching agent:', err);
+        } finally {
+          setAgentLoading(false);
+        }
+      }
     }
+    setIsContactModalOpen(true);
   };
 
   const handleViewAgentProfile = () => {
-    if (agent?.id) {
-      router.push(`/agents/${agent.id}`);
+    const agentData = property?.agent || agent;
+    if (agentData?.id) {
+      router.push(`/agent/${agentData.id}`);
     }
   };
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <PropertyGridSkeleton count={1} />
+      <div className="w-full px-4 py-8">
+        <PropertyGridSkeleton />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="w-full px-4 py-8">
         <LoadingError 
           message={error} 
           onRetry={() => window.location.reload()} 
@@ -109,7 +112,7 @@ export default function PropertyDetailsPage() {
 
   if (!property) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="w-full px-4 py-8">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Property Not Found</h1>
           <p className="text-gray-600 mb-6">The property you're looking for doesn't exist or has been removed.</p>
@@ -148,7 +151,7 @@ export default function PropertyDetailsPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="w-full px-4 py-8">
       <button 
         onClick={() => router.back()}
         className="mb-6 text-blue-600 hover:text-blue-800 flex items-center gap-2"
@@ -156,8 +159,8 @@ export default function PropertyDetailsPage() {
         ← Back to Browse
       </button>
 
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-        {/* Property Image */}
+      <div className="bg-white rounded-lg shadow-lg overflow-hidden w-full">
+        {/* Property Image - Full Width */}
         <div className="relative h-96 w-full">
           <Image
             src={getSafeImageUrl(getMainImage())}
