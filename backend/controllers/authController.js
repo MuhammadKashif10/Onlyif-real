@@ -123,6 +123,20 @@ const login = async (req, res) => {
       );
     }
 
+    // Check if user is suspended
+    if (user.isSuspended) {
+      return res.status(403).json(
+        errorResponse('Account is suspended. Contact support.', 403)
+      );
+    }
+
+    // Check if user is not active
+    if (!user.isActive) {
+      return res.status(403).json(
+        errorResponse('Account is not active. Contact support.', 403)
+      );
+    }
+
     // Check password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {

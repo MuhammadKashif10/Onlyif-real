@@ -151,13 +151,34 @@ const toggleUserSuspension = async (req, res) => {
       );
     }
 
-    // Toggle the isActive status
-    user.isActive = !user.isActive;
+    // Prevent admin accounts from being suspended
+    if (user.role === 'admin') {
+      return res.status(403).json(
+        errorResponse('Admin accounts cannot be suspended or modified', 403)
+      );
+    }
+
+    // Toggle the status properly
+    if (user.isActive && !user.isSuspended) {
+      // Currently active, suspend the user
+      user.isActive = false;
+      user.isSuspended = true;
+      user.suspendedAt = new Date();
+      user.suspendedBy = req.user.id;
+    } else {
+      // Currently suspended, activate the user
+      user.isActive = true;
+      user.isSuspended = false;
+      user.suspendedAt = null;
+      user.suspendedBy = null;
+      user.suspensionReason = null;
+    }
+
     await user.save();
 
     res.json(
       successResponse(
-        { user: { id: user._id, isActive: user.isActive } },
+        { user: { id: user._id, isActive: user.isActive, isSuspended: user.isSuspended } },
         `User ${user.isActive ? 'activated' : 'suspended'} successfully`
       )
     );

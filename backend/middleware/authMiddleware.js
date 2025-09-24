@@ -42,6 +42,13 @@ const authMiddleware = async (req, res, next) => {
       );
     }
 
+    // Check if user is not active
+    if (!user.isActive) {
+      return res.status(403).json(
+        errorResponse('Account is not active. Contact support.', 403)
+      );
+    }
+
     // Check if account is locked
     if (user.isLocked) {
       return res.status(423).json(

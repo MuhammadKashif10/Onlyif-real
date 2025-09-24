@@ -5,52 +5,58 @@ import { Star, MapPin, Bed, Bath, Square, Heart, Eye, ExternalLink } from 'lucid
 import { buyerApi } from '@/api/buyer';
 import { Property } from '@/types/api';
 import Link from 'next/link';
+import { generatePropertyUrl } from '@/utils/slugify';
 
 interface RecommendationsSectionProps {
   onPropertyView?: (propertyId: string) => void;
 }
 
-const RecommendationsSection: React.FC<RecommendationsSectionProps> = ({ onPropertyView }) => {
+export default function RecommendationsSection({ onPropertyView }: RecommendationsSectionProps) {
   const [recommendations, setRecommendations] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const fetchRecommendations = async () => {
+      try {
+        setLoading(true);
+        const response = await buyerApi.getRecommendations();
+        if (response.success) {
+          setRecommendations(response.data || []);
+        } else {
+          setError(response.message || 'Failed to fetch recommendations');
+        }
+      } catch (err) {
+        console.error('Error fetching recommendations:', err);
+        setError('Failed to load recommendations');
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchRecommendations();
   }, []);
 
-  const fetchRecommendations = async () => {
-    try {
-      const response = await buyerApi.getRecommendations();
-      if (response.success) {
-        setRecommendations(response.data);
-      }
-    } catch (error) {
-      console.error('Error fetching recommendations:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSaveProperty = async (propertyId: string) => {
-    try {
-      await buyerApi.saveProperty(propertyId);
-      // You might want to show a success message here
-    } catch (error) {
-      console.error('Error saving property:', error);
+  const handlePropertyView = (property: Property) => {
+    if (onPropertyView) {
+      onPropertyView(property.id);
     }
   };
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border p-6">
+      <div className="bg-white rounded-lg shadow p-6">
         <div className="animate-pulse">
           <div className="h-6 bg-gray-200 rounded w-1/3 mb-4"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="space-y-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="border border-gray-200 rounded-lg p-4">
-                <div className="h-48 bg-gray-200 rounded-lg mb-4"></div>
-                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+              <div key={i} className="flex space-x-4">
+                <div className="w-20 h-20 bg-gray-200 rounded"></div>
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                  <div className="h-3 bg-gray-200 rounded w-1/4"></div>
+                </div>
               </div>
             ))}
           </div>
@@ -59,99 +65,126 @@ const RecommendationsSection: React.FC<RecommendationsSectionProps> = ({ onPrope
     );
   }
 
-  return (
-    <div className="bg-white rounded-lg shadow-sm border">
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Star className="h-6 w-6 text-blue-600" />
-            <h2 className="text-xl font-semibold text-gray-900">Recommended for You</h2>
-          </div>
-          <Link
-            href="/browse"
-            className="text-blue-600 hover:text-blue-700 font-medium text-sm flex items-center space-x-1"
+  if (error) {
+    return (
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Recommended Properties</h2>
+        <div className="text-center py-8">
+          <p className="text-red-600 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="text-blue-600 hover:text-blue-800"
           >
-            <span>View All</span>
-            <ExternalLink className="h-4 w-4" />
-          </Link>
+            Try Again
+          </button>
         </div>
       </div>
+    );
+  }
 
+  return (
+    <div className="bg-white rounded-lg shadow">
+      <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <div className="flex items-center">
+          <Star className="h-5 w-5 text-yellow-500 mr-2" />
+          <h2 className="text-lg font-semibold text-gray-900">Recommended for You</h2>
+        </div>
+        <Link 
+          href="/browse" 
+          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+        >
+          View All
+        </Link>
+      </div>
+      
       <div className="p-6">
-        {recommendations.length === 0 ? (
-          <div className="text-center py-8">
-            <Star className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No recommendations yet</h3>
-            <p className="text-gray-600 mb-4">Complete your buyer profile to get personalized property recommendations.</p>
-            <Link
-              href="/dashboards/buyer?tab=profile"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-block"
-            >
-              Complete Profile
-            </Link>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {recommendations.slice(0, 6).map((property) => (
-              <div key={property._id} className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
-                <div className="relative">
-                  <img
-                    src={property.images?.[0] || '/images/placeholder-property.jpg'}
-                    alt={property.title}
-                    className="w-full h-48 object-cover"
-                  />
-                  <button
-                    onClick={() => handleSaveProperty(property._id)}
-                    className="absolute top-3 right-3 p-2 bg-white rounded-full shadow-md hover:bg-gray-50 transition-colors"
-                  >
-                    <Heart className="h-4 w-4 text-gray-600" />
-                  </button>
-                </div>
-                <div className="p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className="font-semibold text-gray-900 text-sm line-clamp-2">{property.title}</h3>
-                    <span className="text-lg font-bold text-blue-600 ml-2">
-                      ${property.price?.toLocaleString()}
-                    </span>
+        {recommendations.length > 0 ? (
+          <div className="space-y-4">
+            {recommendations.slice(0, 3).map((property) => {
+              const seoUrl = generatePropertyUrl(property.id, property.title);
+              
+              return (
+                <div key={property.id} className="flex items-center space-x-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                  <div className="w-20 h-20 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
+                    {property.mainImage ? (
+                      <img 
+                        src={property.mainImage} 
+                        alt={property.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                        <span className="text-xs text-gray-400">No Image</span>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center text-gray-600 text-sm mb-3">
-                    <MapPin className="h-4 w-4 mr-1" />
-                    <span className="line-clamp-1">{property.address?.street}, {property.address?.city}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
-                    <div className="flex items-center space-x-4">
-                      <div className="flex items-center space-x-1">
-                        <Bed className="h-4 w-4" />
-                        <span>{property.bedrooms}</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <Bath className="h-4 w-4" />
-                        <span>{property.bathrooms}</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <Square className="h-4 w-4" />
-                        <span>{property.squareFootage?.toLocaleString()} sq ft</span>
-                      </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium text-gray-900 truncate">{property.title}</h3>
+                    <div className="flex items-center text-gray-500 text-sm mt-1">
+                      <MapPin className="h-3 w-3 mr-1" />
+                      <span className="truncate">{property.address}</span>
+                    </div>
+                    <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600">
+                      {property.beds && (
+                        <div className="flex items-center">
+                          <Bed className="h-3 w-3 mr-1" />
+                          <span>{property.beds}</span>
+                        </div>
+                      )}
+                      {property.baths && (
+                        <div className="flex items-center">
+                          <Bath className="h-3 w-3 mr-1" />
+                          <span>{property.baths}</span>
+                        </div>
+                      )}
+                      {property.size && (
+                        <div className="flex items-center">
+                          <Square className="h-3 w-3 mr-1" />
+                          <span>{property.size} m²</span>
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <div className="flex space-x-2">
-                    <Link
-                      href={`/property/${property._id}`}
-                      onClick={() => onPropertyView?.(property._id)}
-                      className="flex-1 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors text-center flex items-center justify-center space-x-1"
-                    >
-                      <Eye className="h-4 w-4" />
-                      <span>View Details</span>
-                    </Link>
+                  
+                  <div className="text-right flex-shrink-0">
+                    <p className="font-semibold text-gray-900">
+                      ${property.price?.toLocaleString()}
+                    </p>
+                    <div className="flex items-center space-x-2 mt-2">
+                      <button
+                        onClick={() => handlePropertyView(property)}
+                        className="p-1 text-gray-400 hover:text-blue-600"
+                        title="View Details"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                      <Link
+                        href={seoUrl}
+                        className="p-1 text-gray-400 hover:text-blue-600"
+                        title="Open Property"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </Link>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <Star className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500 mb-4">No recommendations available yet</p>
+            <Link 
+              href="/browse"
+              className="text-blue-600 hover:text-blue-800 font-medium"
+            >
+              Browse All Properties
+            </Link>
           </div>
         )}
       </div>
     </div>
   );
-};
-
-export default RecommendationsSection;
+}

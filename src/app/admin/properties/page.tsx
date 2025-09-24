@@ -37,6 +37,7 @@ interface Property {
 
 interface Agent {
   _id: string;
+  id: string;  // Add id field for compatibility with backend
   name: string;
   email: string;
   status: string;
@@ -772,7 +773,7 @@ const PropertiesPage = () => {
                 >
                   <option value="">Choose an agent...</option>
                   {agents.map((agent: Agent) => (
-                    <option key={agent._id} value={agent._id}>
+                    <option key={agent._id || agent.id} value={agent.id || agent._id}>
                       {agent.name} ({agent.email})
                     </option>
                   ))}

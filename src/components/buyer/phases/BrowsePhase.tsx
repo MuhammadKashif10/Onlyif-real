@@ -1,15 +1,15 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useBuyerContext } from '@/context/BuyerContext';
-import { PropertyGrid } from '@/components';
-import Button from '@/components/reusable/Button';
-import { Property } from '@/api';
 import { useRouter } from 'next/navigation';
+import { Property } from '@/types/api';
+import { PropertyGrid } from '@/components/sections';
+import { useBuyerContext } from '@/context/BuyerContext';
+import { generatePropertyUrl } from '@/utils/slugify';
 
 export default function BrowsePhase() {
   const router = useRouter();
-  const { buyerData, updateBuyerData, nextPhase } = useBuyerContext();
+  const { buyerData, updateBuyerData } = useBuyerContext();
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const [selectedPropertyData, setSelectedPropertyData] = useState<Property | null>(null);
 
@@ -27,90 +27,36 @@ export default function BrowsePhase() {
       }
     });
     
-    // Navigate to property details page
-    router.push(`/property/${property.id}`);
+    // Navigate to property details page with SEO-friendly URL
+    const seoUrl = generatePropertyUrl(property.id, property.title);
+    router.push(seoUrl);
   };
-
-  const handleContinue = () => {
-    if (selectedPropertyData) {
-      nextPhase();
-    }
-  };
-
-  // Auto-advance if property is already selected
-  useEffect(() => {
-    if (buyerData.selectedProperty && !selectedPropertyData) {
-      // If we have a selected property in context but not in local state,
-      // we might be returning to this phase - sync the states
-      setSelectedPropertyId(buyerData.selectedProperty.id);
-    }
-  }, [buyerData.selectedProperty, selectedPropertyData]);
 
   return (
-    <div>
-      <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Browse Properties</h2>
-        <p className="text-gray-600">Select a property to unlock detailed information</p>
+    <div className="space-y-6">
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">
+          Browse Available Properties
+        </h2>
+        <p className="text-gray-600 mb-8">
+          Explore our curated selection of properties and find your perfect home.
+        </p>
       </div>
 
-      {/* Selected Property Summary */}
-      {buyerData.selectedProperty && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold text-green-800">
-                Selected: {buyerData.selectedProperty.title}
-              </h3>
-              <p className="text-green-600 text-sm">
-                {buyerData.selectedProperty.address} • ${buyerData.selectedProperty.price.toLocaleString()}
-              </p>
-            </div>
-            <Button
-              onClick={handleContinue}
-              size="sm"
-              className="bg-green-600 hover:bg-green-700"
-            >
-              Continue with This Property
-            </Button>
-          </div>
-        </div>
-      )}
+      <PropertyGrid
+        onPropertyClick={handlePropertySelect}
+        showFilters={true}
+        showPagination={true}
+        itemsPerPage={12}
+      />
 
-      {/* Property Grid with proper click handler */}
-      <div className="relative">
-        <PropertyGrid
-          showFilters={true}
-          showPagination={true}
-          itemsPerPage={12}
-          featuredOnly={false}
-          onPropertyClick={handlePropertySelect}
-          className="property-grid-buyer"
-        />
-        
-        {/* Selection styling */}
-        <style jsx global>{`
-          .property-grid-buyer .property-card {
-            cursor: pointer;
-            transition: all 0.2s ease;
-          }
-          
-          .property-grid-buyer .property-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-          }
-          
-          .property-card.selected {
-            ring: 2px solid #10b981;
-            ring-offset: 2px;
-          }
-        `}</style>
-      </div>
-
-      {!buyerData.selectedProperty && (
-        <div className="mt-8 text-center">
-          <p className="text-gray-500 text-sm">
-            Click on any property above to select it and continue to the next step
+      {selectedPropertyData && (
+        <div className="mt-8 p-4 bg-blue-50 rounded-lg">
+          <h3 className="font-semibold text-blue-900 mb-2">Selected Property</h3>
+          <p className="text-blue-800">
+            {selectedPropertyData.title} - ${selectedPropertyData.price?.toLocaleString()}
           </p>
+          <p className="text-blue-700 text-sm">{selectedPropertyData.address}</p>
         </div>
       )}
     </div>

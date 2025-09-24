@@ -76,7 +76,7 @@ function constructBackendImageUrl(imagePath: string): string {
 
 export function getSafeImageUrl(imagePath: string | null | undefined, type: 'property' | 'agent' | 'user' = 'property'): string {
   // Return placeholder immediately if no path provided
-  if (!imagePath || imagePath.trim() === '') {
+  if (!imagePath || typeof imagePath !== 'string' || imagePath.trim() === '') {
     return type === 'property' ? '/images/default-property.jpg' : '/images/default-avatar.jpg';
   }
 

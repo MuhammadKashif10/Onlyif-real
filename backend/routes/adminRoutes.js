@@ -355,12 +355,13 @@ router.get('/agents', asyncHandler(async (req, res) => {
     
     // Transform the data to match frontend expectations
     const transformedAgents = agents.map(agent => ({
-      id: agent._id,
+      _id: agent._id,  // Use _id instead of id for consistency
+      id: agent._id,   // Keep id for backward compatibility
       name: agent.name,
       email: agent.email,
       phone: agent.phone || agent.agentProfile?.phone || '',
       licenseNumber: agent.agentProfile?.licenseNumber || '',
-      status: agent.isSuspended ? 'suspended' : (agent.isActive ? 'active' : 'pending'),
+      status: agent.isSuspended ? 'suspended' : (agent.isActive ? 'approved' : 'pending'),
       joinedDate: agent.createdAt ? new Date(agent.createdAt).toLocaleDateString() : '',
       totalListings: 0, // You can calculate this from properties
       totalSales: 0, // You can calculate this from transactions

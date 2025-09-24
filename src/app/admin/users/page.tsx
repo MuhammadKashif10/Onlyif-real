@@ -118,11 +118,9 @@ export default function UsersPage() {
   const handleSuspend = async (userId: string) => {
     try {
       await adminApi.updateUserStatus(userId, 'suspended');
-      setUsers(users.map(user => 
-        user.id === userId ? { ...user, status: 'suspended' as User['status'] } : user
-      ));
-      // Reload stats after status change
-      loadUserStats();
+      // Refresh data from backend to ensure consistency
+      await loadUsers();
+      await loadUserStats();
       toast.success('User suspended successfully');
     } catch (error: any) {
       console.error('Error suspending user:', error);
@@ -133,11 +131,9 @@ export default function UsersPage() {
   const handleActivate = async (userId: string) => {
     try {
       await adminApi.updateUserStatus(userId, 'active');
-      setUsers(users.map(user => 
-        user.id === userId ? { ...user, status: 'active' as User['status'] } : user
-      ));
-      // Reload stats after status change
-      loadUserStats();
+      // Refresh data from backend to ensure consistency
+      await loadUsers();
+      await loadUserStats();
       toast.success('User activated successfully');
     } catch (error: any) {
       console.error('Error activating user:', error);
@@ -152,9 +148,9 @@ export default function UsersPage() {
 
     try {
       await adminApi.deleteUser(userId);
-      setUsers(users.filter(user => user.id !== userId));
-      // Reload stats after deletion
-      loadUserStats();
+      // Refresh data from backend to ensure consistency
+      await loadUsers();
+      await loadUserStats();
       toast.success('User deleted successfully');
     } catch (error: any) {
       console.error('Error deleting user:', error);
