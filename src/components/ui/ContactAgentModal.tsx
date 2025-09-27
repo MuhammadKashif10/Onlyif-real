@@ -164,8 +164,7 @@ const socket = io(process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000", {
           <div className="min-w-0">
             <p className="font-semibold truncate">{agent?.name || 'Agent'}</p>
             <p className="text-xs text-gray-500 truncate">
-              {agent?.title || 'Real Estate Agent'} • {agent?.phone || '—'} •{' '}
-              {agent?.email || '—'}
+              {agent?.title || 'Real Estate Agent'}
             </p>
           </div>
         </div>

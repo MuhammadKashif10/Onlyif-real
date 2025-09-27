@@ -108,6 +108,13 @@ const userSchema = new mongoose.Schema({
   },
   
   // Account status
+  status: {
+    type: String,
+    enum: ['active', 'suspended'],
+    default: 'active'
+  },
+  
+  // Legacy fields - kept for backward compatibility
   isActive: {
     type: Boolean,
     default: true

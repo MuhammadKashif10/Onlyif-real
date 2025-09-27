@@ -84,7 +84,7 @@ await Purchase.findOneAndUpdate(
     property: propertyId,
     paymentIntentId: session.id,
     amount: 4900,
-    status: 'pending'
+    status: 'paid'
   },
   { upsert: true, new: true }
 );

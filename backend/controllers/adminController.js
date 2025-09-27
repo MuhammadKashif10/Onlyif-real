@@ -47,29 +47,46 @@ const getAllUsers = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
     const role = req.query.role;
+    const search = req.query.search;
 
-    let query = {};
+    let query = { isDeleted: false };
+    
     if (role) {
       query.role = role;
+    }
+
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
+      ];
     }
 
     const users = await User.find(query)
       .select('-password')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
+
+    // Normalize users to ensure status field exists
+    const normalizedUsers = users.map(user => ({
+      ...user,
+      status: user.status || (user.isSuspended ? 'suspended' : 'active')
+    }));
 
     const total = await User.countDocuments(query);
 
     res.json(
       successResponse(
-        users,
+        normalizedUsers,
         'Users retrieved successfully',
         200,
         paginationMeta(page, limit, total)
       )
     );
   } catch (error) {
+    console.error('Error retrieving users:', error);
     res.status(500).json(
       errorResponse('Server error retrieving users', 500)
     );
@@ -198,6 +215,13 @@ const updateUserStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
     
+    // Validate status
+    if (!status || !['active', 'suspended'].includes(status)) {
+      return res.status(400).json(
+        errorResponse('Invalid status. Must be "active" or "suspended"', 400)
+      );
+    }
+    
     const user = await User.findById(id);
     if (!user) {
       return res.status(404).json(
@@ -212,7 +236,17 @@ const updateUserStatus = async (req, res) => {
       );
     }
 
-    // Update status based on the request
+    // Prevent self-deactivation
+    if (req.user.id === id && status === 'suspended') {
+      return res.status(403).json(
+        errorResponse('You cannot suspend your own account', 403)
+      );
+    }
+
+    // Update status
+    user.status = status;
+    
+    // Update legacy fields for backward compatibility
     if (status === 'suspended') {
       user.isSuspended = true;
       user.isActive = false;
@@ -230,7 +264,13 @@ const updateUserStatus = async (req, res) => {
 
     res.json(
       successResponse(
-        { user: { id: user._id, status: user.isSuspended ? 'suspended' : 'active' } },
+        { 
+          id: user._id, 
+          status: user.status,
+          name: user.name,
+          email: user.email,
+          role: user.role
+        },
         `User ${status === 'suspended' ? 'suspended' : 'activated'} successfully`
       )
     );
@@ -381,37 +421,46 @@ const getTermsLogs = async (req, res) => {
 // @access  Private (Admin only)
 const getUserStats = async (req, res) => {
   try {
-    // Get total users count (buyers and sellers only, excluding agents and admins)
+    // Get total users count (excluding admins and deleted users)
     const totalUsers = await User.countDocuments({ 
-      role: { $in: ['buyer', 'seller'] }, 
+      role: { $in: ['buyer', 'seller', 'agent'] }, 
       isDeleted: false 
     });
-    
+
     // Get buyers count
-    const buyers = await User.countDocuments({ 
+    const totalBuyers = await User.countDocuments({ 
       role: 'buyer', 
       isDeleted: false 
     });
-    
+
     // Get sellers count
-    const sellers = await User.countDocuments({ 
+    const totalSellers = await User.countDocuments({ 
       role: 'seller', 
       isDeleted: false 
     });
-    
-    // Get suspended users count (buyers and sellers only)
-    const suspended = await User.countDocuments({ 
-      role: { $in: ['buyer', 'seller'] },
-      isSuspended: true,
+
+    // Get agents count
+    const totalAgents = await User.countDocuments({ 
+      role: 'agent', 
+      isDeleted: false 
+    });
+
+    // Get suspended users count (using both new status field and legacy field for compatibility)
+    const totalSuspended = await User.countDocuments({ 
+      $or: [
+        { status: 'suspended' },
+        { isSuspended: true }
+      ],
       isDeleted: false 
     });
 
     res.json(
       successResponse({
         totalUsers,
-        buyers,
-        sellers,
-        suspended
+        totalBuyers,
+        totalSellers,
+        totalAgents,
+        totalSuspended
       }, 'User stats retrieved successfully')
     );
   } catch (error) {

@@ -232,31 +232,6 @@ const SellerDashboard = () => {
 
   // Add missing handler functions after the existing handlers
   
-  // Handle price estimation
-  const handleGetPriceEstimation = async () => {
-    try {
-      setIsGettingPriceEstimation(true);
-      
-      // Get price estimation from CoreLogic API
-      const estimation = await corelogicApi.getPriceEstimation({
-        address: 'property-address', // You'll need to get this from selected property
-        propertyType: 'house',
-        bedrooms: 3,
-        bathrooms: 2,
-        landSize: 500
-      });
-      
-      // Navigate to results page or show modal with estimation
-      router.push(`/dashboards/seller/price-estimation?result=${estimation.estimatedValue}`);
-      
-    } catch (error) {
-      console.error('Error getting price estimation:', error);
-      // Handle error (show error message to user)
-    } finally {
-      setIsGettingPriceEstimation(false);
-    }
-  };
-
   // Handle view add-ons
   const handleViewAddons = async () => {
     try {
@@ -351,19 +326,6 @@ const SellerDashboard = () => {
             <section className="py-12">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 
-                {/* Price Estimation Section */}
-                <div className="bg-white rounded-lg shadow-md p-8 mb-8 text-center">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-4">Price Estimation</h2>
-                  <p className="text-gray-600 mb-6">Get an accurate price estimation for your property using CoreLogic data.</p>
-                  <button 
-                    onClick={handleGetPriceEstimation}
-                    disabled={isGettingPriceEstimation}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:opacity-50"
-                  >
-                    {isGettingPriceEstimation ? 'Loading...' : 'Get Price Estimation'}
-                  </button>
-                </div>
-
                 {/* Quick Actions Section */}
                 <div className="mb-8">
                   <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">Quick Actions</h2>
@@ -401,21 +363,7 @@ const SellerDashboard = () => {
                       </button>
                     </div>
 
-                    {/* Get Cash Offer Card */}
-                    <div className="bg-white rounded-lg shadow-md p-6 text-center hover:shadow-lg transition-shadow">
-                      <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                        <span className="text-2xl text-orange-600">💰</span>
-                      </div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Get Cash Offer</h3>
-                      <p className="text-gray-600 text-sm mb-4">Receive a competitive cash offer for your property within 24 hours.</p>
-                      <button 
-                        onClick={handleGetCashOffer}
-                        disabled={isGettingCashOffer}
-                        className="w-full bg-orange-600 hover:bg-orange-700 text-white py-2 px-4 rounded-lg font-medium transition-colors disabled:opacity-50"
-                      >
-                        {isGettingCashOffer ? 'Loading...' : 'Get Offer'}
-                      </button>
-                    </div>
+                   
 
                     {/* Schedule Inspection Card */}
                     <div className="bg-white rounded-lg shadow-md p-6 text-center hover:shadow-lg transition-shadow">

@@ -236,8 +236,6 @@ export default function PropertyDetailsPage() {
                   </div>
                   <div className="ml-4">
                     <h3 className="font-semibold text-gray-900">{agent.name}</h3>
-                    <p className="text-gray-600">{agent.email}</p>
-                    {agent.phone && <p className="text-gray-600">{agent.phone}</p>}
                   </div>
                 </div>
                 <button

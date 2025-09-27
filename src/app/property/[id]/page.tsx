@@ -269,7 +269,7 @@ export default function PropertyDetailsPage() {
           {/* Agent Information Display (if available) */}
           {(property.agent || agent) && (
             <div className="border-t pt-6 mt-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-3">Agent Information</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-3">Contact Agent</h2>
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
                   <span className="text-xl font-bold text-gray-600">
@@ -279,8 +279,6 @@ export default function PropertyDetailsPage() {
                 <div>
                   <p className="font-bold text-gray-900">{property.agent?.name || agent?.name}</p>
                   <p className="text-gray-600">{property.agent?.title || agent?.title || 'Real Estate Agent'}</p>
-                  <p className="text-blue-600">{property.agent?.phone || agent?.phone}</p>
-                  <p className="text-blue-600">{property.agent?.email || agent?.email}</p>
                 </div>
               </div>
             </div>

@@ -12,6 +12,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Property } from '@/types/api';
 import { toast } from 'react-hot-toast';
 import { propertiesApi } from '@/api/properties';
+import AutoDescriptionButton from '@/components/seller/AutoDescriptionButton';
 
 interface PropertyFormData {
   title: string;
@@ -403,17 +404,38 @@ export default function AddProperty() {
 
                 {/* Description */}
                 <section>
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Description</h2>
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-semibold text-gray-900">Description</h2>
+                    <AutoDescriptionButton
+                      propertyData={{
+                        houseName: formData.title,
+                        address: formData.location,
+                        location: `${formData.city}, ${formData.state}`,
+                        bedrooms: formData.bedrooms,
+                        bathrooms: formData.bathrooms,
+                        size: formData.squareMeters ? `${formData.squareMeters} sq ft` : '',
+                        price: formData.price,
+                        features: `${formData.propertyType} built in ${formData.yearBuilt || 'N/A'}`
+                      }}
+                      onDescriptionGenerated={(description) => {
+                        handleInputChange('description', description);
+                      }}
+                      disabled={!formData.location || !formData.bedrooms || !formData.bathrooms || !formData.price}
+                    />
+                  </div>
                   <TextArea
                     label="Property Description"
-                    placeholder="Describe your property..."
+                    placeholder="Describe your property... or use the 'Generate Description' button above"
                     value={formData.description}
                     onChange={(e) => handleInputChange('description', e.target.value)}
                     required
-                    rows={4}
+                    rows={6}
                     id="description"
                     name="description"
                   />
+                  <p className="text-sm text-gray-500 mt-2">
+                    💡 Tip: Fill in the basic property details above, then click "Generate Description" for an AI-powered professional description.
+                  </p>
                 </section>
 
                 {/* File Uploads */}

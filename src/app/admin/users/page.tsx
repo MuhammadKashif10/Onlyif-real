@@ -1,143 +1,145 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { adminApi } from '@/api/admin';
 import { toast } from 'react-hot-toast';
 
 interface User {
-  id: string;
+  _id: string;
+  id?: string; // Add fallback for id field
   name: string;
   email: string;
   phone?: string;
-  role: 'buyer' | 'seller' | 'admin';
-  status: 'active' | 'suspended' | 'banned';
-  joinedDate: string;
-  lastActive: string;
-  totalTransactions: number;
-  profileImage?: string;
+  role: 'buyer' | 'seller' | 'agent' | 'admin';
+  status: 'active' | 'suspended';
+  lastLogin?: string;
+  createdAt: string;
+  // Legacy fields for backward compatibility
+  isActive?: boolean;
+  isSuspended?: boolean;
 }
 
 interface UserStats {
   totalUsers: number;
-  buyers: number;
-  sellers: number;
-  suspended: number;
+  totalBuyers: number;
+  totalSellers: number;
+  totalSuspended: number;
 }
 
 export default function UsersPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user: currentUser } = useAuth();
   const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [showModal, setShowModal] = useState(false);
   const [userStats, setUserStats] = useState<UserStats>({
     totalUsers: 0,
-    buyers: 0,
-    sellers: 0,
-    suspended: 0
+    totalBuyers: 0,
+    totalSellers: 0,
+    totalSuspended: 0
   });
-  const [statsLoading, setStatsLoading] = useState(true);
-  const [statsError, setStatsError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [showModal, setShowModal] = useState(false);
 
+  // Load users and stats
   useEffect(() => {
-    if (!authLoading && (!user || user.role !== 'admin')) {
-      router.push('/signin');
-      return;
-    }
-    
-    if (user && user.role === 'admin') {
-      loadUsers();
-      loadUserStats();
-    }
-  }, [user, authLoading, router]);
-
-  useEffect(() => {
-    filterUsers();
-  }, [users, searchTerm, roleFilter, statusFilter]);
+    loadUsers();
+    loadUserStats();
+  }, []);
 
   const loadUsers = async () => {
     try {
-      setIsLoading(true);
-      // Pass a large limit to get all users, or you can pass limit: 1000
-      const response = await adminApi.getUsers({ limit: 1000 });
-      setUsers(response.data || []);
-      setError('');
-    } catch (error) {
-      console.error('Error loading users:', error);
-      setError('Failed to load users');
+      setLoading(true);
+      const response = await adminApi.getUsers();
+      const usersData = response.data || [];
+      
+      console.log('Raw users data:', usersData); // Debug log
+      
+      // Normalize user data to ensure status field exists and _id is properly set
+      const normalizedUsers = usersData.map((user: any) => ({
+        ...user,
+        _id: user._id || user.id, // Ensure _id exists
+        status: user.status || (user.isSuspended ? 'suspended' : 'active')
+      }));
+      
+      console.log('Normalized users:', normalizedUsers); // Debug log
+      
+      setUsers(normalizedUsers);
+      setError(null);
+    } catch (err: any) {
+      console.error('Error loading users:', err);
+      setError(err.message || 'Failed to load users');
       toast.error('Failed to load users');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   const loadUserStats = async () => {
     try {
-      setStatsLoading(true);
       const response = await adminApi.getUserStats();
-      setUserStats(response.data);
-      setStatsError('');
-    } catch (error) {
-      console.error('Error loading user stats:', error);
-      setStatsError('Failed to load statistics');
-    } finally {
-      setStatsLoading(false);
+      setUserStats(response.data || {
+        totalUsers: 0,
+        totalBuyers: 0,
+        totalSellers: 0,
+        totalSuspended: 0
+      });
+    } catch (err: any) {
+      console.error('Error loading user stats:', err);
     }
   };
 
-  const filterUsers = () => {
-    let filtered = users;
+  // Filter users based on search term, role, and status
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRole = !roleFilter || user.role === roleFilter;
+    const matchesStatus = !statusFilter || user.status === statusFilter;
     
-    if (searchTerm) {
-      filtered = filtered.filter(user => 
-        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-    
-    if (roleFilter !== 'all') {
-      filtered = filtered.filter(user => user.role === roleFilter);
-    }
-    
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(user => user.status === statusFilter);
-    }
-    
-    setFilteredUsers(filtered);
-  };
+    return matchesSearch && matchesRole && matchesStatus;
+  });
 
-  const handleSuspend = async (userId: string) => {
+  const handleStatusToggle = async (userId: string, currentStatus: string) => {
     try {
-      await adminApi.updateUserStatus(userId, 'suspended');
-      // Refresh data from backend to ensure consistency
-      await loadUsers();
-      await loadUserStats();
-      toast.success('User suspended successfully');
-    } catch (error: any) {
-      console.error('Error suspending user:', error);
-      toast.error(error.response?.data?.message || 'Failed to suspend user');
-    }
-  };
-
-  const handleActivate = async (userId: string) => {
-    try {
-      await adminApi.updateUserStatus(userId, 'active');
-      // Refresh data from backend to ensure consistency
-      await loadUsers();
-      await loadUserStats();
-      toast.success('User activated successfully');
-    } catch (error: any) {
-      console.error('Error activating user:', error);
-      toast.error(error.response?.data?.message || 'Failed to activate user');
+      console.log('handleStatusToggle called with:', { userId, currentStatus }); // Debug log
+      
+      // Validate userId
+      if (!userId || userId === 'undefined') {
+        console.error('Invalid userId:', userId);
+        toast.error('Invalid user ID. Please refresh the page and try again.');
+        return;
+      }
+      
+      const newStatus = currentStatus === 'active' ? 'suspended' : 'active';
+      
+      // Prevent self-deactivation
+      if (currentUser?.id === userId && newStatus === 'suspended') {
+        toast.error('You cannot suspend your own account');
+        return;
+      }
+      
+      console.log('Making API call to update user status:', { userId, newStatus }); // Debug log
+      
+      const response = await adminApi.updateUserStatus(userId, newStatus);
+      
+      // Update user state locally
+      setUsers(prev => prev.map(u => 
+        u._id === userId ? { ...u, status: newStatus } : u
+      ));
+      
+      toast.success(`User ${newStatus === 'suspended' ? 'suspended' : 'activated'} successfully`);
+      
+      // Refresh stats
+      loadUserStats();
+    } catch (err: any) {
+      console.error('Error updating user status:', err);
+      toast.error(err.message || 'Failed to update user status');
     }
   };
 
@@ -148,39 +150,65 @@ export default function UsersPage() {
 
     try {
       await adminApi.deleteUser(userId);
-      // Refresh data from backend to ensure consistency
-      await loadUsers();
-      await loadUserStats();
+      setUsers(prev => prev.filter(u => u._id !== userId));
       toast.success('User deleted successfully');
-    } catch (error: any) {
-      console.error('Error deleting user:', error);
-      toast.error(error.response?.data?.message || 'Failed to delete user');
+      loadUserStats();
+    } catch (err: any) {
+      console.error('Error deleting user:', err);
+      toast.error(err.message || 'Failed to delete user');
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'text-green-600 bg-green-100';
-      case 'suspended': return 'text-yellow-600 bg-yellow-100';
-      case 'banned': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
+      case 'active':
+        return 'bg-green-100 text-green-800';
+      case 'suspended':
+        return 'bg-yellow-100 text-yellow-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
   const getRoleColor = (role: string) => {
     switch (role) {
-      case 'buyer': return 'text-blue-600 bg-blue-100';
-      case 'seller': return 'text-purple-600 bg-purple-100';
-      case 'admin': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
+      case 'admin':
+        return 'bg-purple-100 text-purple-800';
+      case 'agent':
+        return 'bg-blue-100 text-blue-800';
+      case 'seller':
+        return 'bg-orange-100 text-orange-800';
+      case 'buyer':
+        return 'bg-green-100 text-green-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
-  if (authLoading || !user) {
+  if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
+      <AdminLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <AdminLayout>
+        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+          <div className="flex">
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">Error</h3>
+              <div className="mt-2 text-sm text-red-700">
+                <p>{error}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </AdminLayout>
     );
   }
 
@@ -199,21 +227,13 @@ export default function UsersPage() {
               <div className="flex items-center">
                 <div className="flex-shrink-0">
                   <div className="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center">
-                    <span className="text-white text-sm font-medium">U</span>
+                    <span className="text-white font-bold text-sm">{userStats.totalUsers}</span>
                   </div>
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Onlyif Users</dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {statsLoading ? (
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                      ) : statsError ? (
-                        <span className="text-red-500 text-sm">Error</span>
-                      ) : (
-                        userStats.totalUsers
-                      )}
-                    </dd>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Total Users</dt>
+                    <dd className="text-lg font-medium text-gray-900">{userStats.totalUsers}</dd>
                   </dl>
                 </div>
               </div>
@@ -225,21 +245,13 @@ export default function UsersPage() {
               <div className="flex items-center">
                 <div className="flex-shrink-0">
                   <div className="w-8 h-8 bg-green-500 rounded-md flex items-center justify-center">
-                    <span className="text-white text-sm font-medium">B</span>
+                    <span className="text-white font-bold text-sm">{userStats.totalBuyers}</span>
                   </div>
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Onlyif Buyers</dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {statsLoading ? (
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                      ) : statsError ? (
-                        <span className="text-red-500 text-sm">Error</span>
-                      ) : (
-                        userStats.buyers
-                      )}
-                    </dd>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Buyers</dt>
+                    <dd className="text-lg font-medium text-gray-900">{userStats.totalBuyers}</dd>
                   </dl>
                 </div>
               </div>
@@ -251,21 +263,13 @@ export default function UsersPage() {
               <div className="flex items-center">
                 <div className="flex-shrink-0">
                   <div className="w-8 h-8 bg-purple-500 rounded-md flex items-center justify-center">
-                    <span className="text-white text-sm font-medium">S</span>
+                    <span className="text-white font-bold text-sm">{userStats.totalSellers}</span>
                   </div>
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Onlyif Sellers</dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {statsLoading ? (
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                      ) : statsError ? (
-                        <span className="text-red-500 text-sm">Error</span>
-                      ) : (
-                        userStats.sellers
-                      )}
-                    </dd>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Sellers</dt>
+                    <dd className="text-lg font-medium text-gray-900">{userStats.totalSellers}</dd>
                   </dl>
                 </div>
               </div>
@@ -277,21 +281,13 @@ export default function UsersPage() {
               <div className="flex items-center">
                 <div className="flex-shrink-0">
                   <div className="w-8 h-8 bg-yellow-500 rounded-md flex items-center justify-center">
-                    <span className="text-white text-sm font-medium">!</span>
+                    <span className="text-white font-bold text-sm">{userStats.totalSuspended}</span>
                   </div>
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Onlyif Suspended</dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {statsLoading ? (
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                      ) : statsError ? (
-                        <span className="text-red-500 text-sm">Error</span>
-                      ) : (
-                        userStats.suspended
-                      )}
-                    </dd>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Suspended</dt>
+                    <dd className="text-lg font-medium text-gray-900">{userStats.totalSuspended}</dd>
                   </dl>
                 </div>
               </div>
@@ -303,37 +299,50 @@ export default function UsersPage() {
         <div className="bg-white shadow rounded-lg p-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Search</label>
+              <label htmlFor="search" className="block text-sm font-medium text-gray-700">
+                Search
+              </label>
               <input
                 type="text"
+                id="search"
                 placeholder="Search by name or email..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               />
             </div>
+
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
+              <label htmlFor="role" className="block text-sm font-medium text-gray-700">
+                Role
+              </label>
               <select
+                id="role"
                 value={roleFilter}
                 onChange={(e) => setRoleFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               >
-                <option value="all">All Roles</option>
-                <option value="buyer">Onlyif Buyers</option>
-                <option value="seller">Onlyif Sellers</option>
+                <option value="">All Roles</option>
+                <option value="buyer">Buyer</option>
+                <option value="seller">Seller</option>
+                <option value="agent">Agent</option>
+                <option value="admin">Admin</option>
               </select>
             </div>
+
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+              <label htmlFor="status" className="block text-sm font-medium text-gray-700">
+                Status
+              </label>
               <select
+                id="status"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               >
-                <option value="all">All Status</option>
+                <option value="">All Status</option>
                 <option value="active">Active</option>
-                <option value="suspended">Onlyif Suspended</option>
+                <option value="suspended">Suspended</option>
               </select>
             </div>
           </div>
@@ -341,58 +350,46 @@ export default function UsersPage() {
 
         {/* Users Table */}
         <div className="bg-white shadow overflow-hidden sm:rounded-md">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    User
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Contact
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Role
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Activity
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {isLoading ? (
+          <div className="px-4 py-5 sm:p-6">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
                   <tr>
-                    <td colSpan={6} className="px-6 py-4 text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                    </td>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      User
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Contact
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Role
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Activity
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
-                ) : filteredUsers.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
-                      No users found
-                    </td>
-                  </tr>
-                ) : (
-                  filteredUsers.map((user) => (
-                    <tr key={user.id} className="hover:bg-gray-50">
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredUsers.map((user) => (
+                    <tr key={user._id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-10 w-10">
-                            <img
-                              className="h-10 w-10 rounded-full"
-                              src={user.profileImage || '/images/default-avatar.png'}
-                              alt={user.name}
-                            />
+                            <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
+                              <span className="text-sm font-medium text-gray-700">
+                                {user.name.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
                           </div>
                           <div className="ml-4">
                             <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                            <div className="text-sm text-gray-500">Joined {user.joinedDate}</div>
+                            <div className="text-sm text-gray-500">Joined {new Date(user.createdAt).toLocaleDateString()}</div>
                           </div>
                         </div>
                       </td>
@@ -407,56 +404,51 @@ export default function UsersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(user.status)}`}>
-                          {user.status}
+                          {user.status === 'active' ? 'Active' : 'Suspended'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div>Last active: {user.lastActive}</div>
-                        <div>Transactions: {user.totalTransactions}</div>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <div>Last active:</div>
+                        <div>{user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-2">
-                          {user.role !== 'admin' && (
-                            <>
-                              {user.status === 'active' ? (
-                                <button
-                                  onClick={() => handleSuspend(user.id)}
-                                  className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200 px-3 py-1 rounded-md text-sm font-medium transition-colors"
-                                >
-                                  Suspend
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => handleActivate(user.id)}
-                                  className="bg-green-100 text-green-800 hover:bg-green-200 px-3 py-1 rounded-md text-sm font-medium transition-colors"
-                                >
-                                  Activate
-                                </button>
-                              )}
-                              <button
-                                onClick={() => handleDelete(user.id)}
-                                className="bg-red-100 text-red-800 hover:bg-red-200 px-3 py-1 rounded-md text-sm font-medium transition-colors"
-                              >
-                                Delete
-                              </button>
-                            </>
-                          )}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                        {user.role !== 'admin' && (
                           <button
                             onClick={() => {
-                              setSelectedUser(user);
-                              setShowModal(true);
+                              console.log('Button clicked for user:', user); // Debug log
+                              console.log('User ID:', user._id, 'Status:', user.status); // Debug log
+                              handleStatusToggle(user._id, user.status);
                             }}
-                            className="bg-blue-100 text-blue-800 hover:bg-blue-200 px-3 py-1 rounded-md text-sm font-medium transition-colors"
+                            className={`inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md ${
+                              user.status === 'active'
+                                ? 'text-red-700 bg-red-100 hover:bg-red-200'
+                                : 'text-green-700 bg-green-100 hover:bg-green-200'
+                            }`}
                           >
-                            View
+                            {user.status === 'active' ? 'Suspend' : 'Activate'}
                           </button>
-                        </div>
+                        )}
+                        <button
+                          onClick={() => handleDelete(user._id)}
+                          className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200"
+                        >
+                          Delete
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedUser(user);
+                            setShowModal(true);
+                          }}
+                          className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200"
+                        >
+                          View
+                        </button>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -481,26 +473,28 @@ export default function UsersPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Role</label>
-                    <p className="text-sm text-gray-900">{selectedUser.role}</p>
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getRoleColor(selectedUser.role)}`}>
+                      {selectedUser.role}
+                    </span>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Status</label>
-                    <p className="text-sm text-gray-900">{selectedUser.status}</p>
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedUser.status)}`}>
+                      {selectedUser.status === 'active' ? 'Active' : 'Suspended'}
+                    </span>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Joined Date</label>
-                    <p className="text-sm text-gray-900">{selectedUser.joinedDate}</p>
+                    <label className="block text-sm font-medium text-gray-700">Joined</label>
+                    <p className="text-sm text-gray-900">{new Date(selectedUser.createdAt).toLocaleDateString()}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Last Active</label>
-                    <p className="text-sm text-gray-900">{selectedUser.lastActive}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Total Transactions</label>
-                    <p className="text-sm text-gray-900">{selectedUser.totalTransactions}</p>
+                    <label className="block text-sm font-medium text-gray-700">Last Login</label>
+                    <p className="text-sm text-gray-900">
+                      {selectedUser.lastLogin ? new Date(selectedUser.lastLogin).toLocaleDateString() : 'Never'}
+                    </p>
                   </div>
                 </div>
-                <div className="mt-6 flex justify-end space-x-3">
+                <div className="mt-6 flex justify-end">
                   <button
                     onClick={() => setShowModal(false)}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
