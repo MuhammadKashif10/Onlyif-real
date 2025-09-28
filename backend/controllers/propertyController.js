@@ -18,24 +18,67 @@ const createProperty = async (req, res) => {
       );
     }
 
+    // Extract form data properly
+    const {
+      title, street, city, state, zipCode, price, beds, baths,
+      squareMeters, propertyType, description, contactName, 
+      contactEmail, contactPhone, yearBuilt, lotSize
+    } = req.body;
+
+    // Validate required fields
+    const requiredFields = ['title', 'street', 'city', 'state', 'zipCode', 'price', 'beds', 'baths', 'squareMeters', 'propertyType'];
+    const missingFields = requiredFields.filter(field => !req.body[field]);
+    
+    if (missingFields.length > 0) {
+      return res.status(400).json(
+        errorResponse(`Missing required fields: ${missingFields.join(', ')}`, 400)
+      );
+    }
+
+    // Create property data with proper structure
     const propertyData = {
-      ...req.body,
       owner: req.user.id,
-      status: 'pending' // Default to pending until media/admin approval
+      title: title.trim(),
+      address: {
+        street: street.trim(),
+        city: city.trim(),
+        state: state.trim().toUpperCase(),
+        zipCode: zipCode.trim(),
+        country: 'US'
+      },
+      location: {
+        type: 'Point',
+        coordinates: [-98.5795, 39.8283] // Default coordinates
+      },
+      price: parseFloat(price),
+      beds: parseInt(beds),
+      baths: parseFloat(baths),
+      squareMeters: parseFloat(squareMeters),
+      propertyType: propertyType.toLowerCase().replace(/\s+/g, '-'),
+      description: description ? description.trim() : '',
+      contactInfo: {
+        name: contactName || req.user.name,
+        email: contactEmail || req.user.email,
+        phone: contactPhone || ''
+      },
+      status: 'active',
+      yearBuilt: yearBuilt ? parseInt(yearBuilt) : undefined,
+      lotSize: lotSize ? parseFloat(lotSize) : undefined
     };
 
     // Handle image uploads from req.files
-    if (req.files && req.files.length > 0) {
+    if (req.files && req.files.images && req.files.images.length > 0) {
       const imagesArray = [];
       let mainImageUrl = null;
 
       // Process each uploaded file
-      req.files.forEach((file, index) => {
-        const imageUrl = `/uploads/${file.filename}`; // Adjust path as needed
+      req.files.images.forEach((file, index) => {
+        const imageUrl = `/uploads/images/${file.filename}`;
         
         imagesArray.push({
           url: imageUrl,
-          isPrimary: index === 0, // First image is primary
+          caption: file.originalname,
+          isPrimary: index === 0,
           order: index
         });
 
@@ -56,6 +99,24 @@ const createProperty = async (req, res) => {
       propertyData.finalImageUrl = { url: null };
     }
 
+    // Handle floor plans
+    if (req.files && req.files.floorPlans && req.files.floorPlans.length > 0) {
+      propertyData.floorPlans = req.files.floorPlans.map((file, index) => ({
+        url: `/uploads/floorplans/${file.filename}`,
+        caption: file.originalname,
+        order: index
+      }));
+    }
+
+    // Handle videos
+    if (req.files && req.files.videos && req.files.videos.length > 0) {
+      propertyData.videos = req.files.videos.map((file, index) => ({
+        url: `/uploads/videos/${file.filename}`,
+        caption: file.originalname,
+        order: index
+      }));
+    }
+
     const property = await Property.create(propertyData);
     
     res.status(201).json(
@@ -63,6 +124,15 @@ const createProperty = async (req, res) => {
     );
   } catch (error) {
     console.error('Error creating property:', error);
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json(
+        errorResponse(`Validation failed: ${validationErrors.join(', ')}`, 400)
+      );
+    }
+    
     res.status(500).json(
       errorResponse('Failed to create property listing', 500)
     );
@@ -348,8 +418,15 @@ const getAllProperties = async (req, res) => {
   const limit = parseInt(req.query.limit) || 0; // 0 means no limit - show all
   const skip = limit > 0 ? (page - 1) * limit : 0;
 
-  // Build filter object - Updated to include active, pending and public properties
-  const filter = { status: { $in: ['active', 'pending', 'public'] } };
+  // Build filter object - Support status filtering from query params
+  const filter = {};
+  
+  // If status is provided in query, use it; otherwise use default public statuses
+  if (req.query.status) {
+    filter.status = req.query.status;
+  } else {
+    filter.status = { $in: ['active', 'pending', 'public'] };
+  }
   
   if (req.query.city) filter.city = new RegExp(req.query.city, 'i');
   if (req.query.state) filter.state = new RegExp(req.query.state, 'i');
@@ -974,7 +1051,7 @@ const createPropertyWithFiles = async (req, res) => {
       images,
       floorPlans,
       videos,
-      status: 'active',
+      status: 'pending', // Changed from 'review' to 'pending' to match admin filter
       yearBuilt: yearBuilt ? parseInt(yearBuilt) : undefined,
       lotSize: lotSize ? parseFloat(lotSize) : undefined,
       // Set mainImage to first uploaded image
@@ -1055,6 +1132,96 @@ const createPropertyWithFiles = async (req, res) => {
   }
 };
 
+// Admin function to approve properties
+const approveProperty = async (req, res) => {
+  try {
+    // Only admins can approve properties
+    if (req.user.role !== 'admin') {
+      return res.status(403).json(
+        errorResponse('Only admins can approve properties', 403)
+      );
+    }
+
+    const { id } = req.params;
+    
+    // Validate property ID
+    if (!id) {
+      return res.status(400).json(
+        errorResponse('Property ID is required for approval', 400)
+      );
+    }
+    
+    const property = await Property.findById(id);
+    if (!property) {
+      return res.status(404).json(
+        errorResponse('Property not found', 404)
+      );
+    }
+
+    // Update status to active
+    property.status = 'active';
+    await property.save();
+
+    res.json(
+      successResponse(
+        property,
+        'Property approved successfully',
+        200
+      )
+    );
+  } catch (error) {
+    console.error('Error approving property:', error);
+    res.status(500).json(
+      errorResponse('Failed to approve property', 500)
+    );
+  }
+};
+
+// Admin function to reject properties
+const rejectProperty = async (req, res) => {
+  try {
+    // Only admins can reject properties
+    if (req.user.role !== 'admin') {
+      return res.status(403).json(
+        errorResponse('Only admins can reject properties', 403)
+      );
+    }
+
+    const { id } = req.params;
+    
+    // Validate property ID
+    if (!id) {
+      return res.status(400).json(
+        errorResponse('Property ID is required for rejection', 400)
+      );
+    }
+    
+    const property = await Property.findById(id);
+    if (!property) {
+      return res.status(404).json(
+        errorResponse('Property not found', 404)
+      );
+    }
+
+    // Update status to rejected
+    property.status = 'rejected';
+    await property.save();
+
+    res.json(
+      successResponse(
+        property,
+        'Property rejected successfully',
+        200
+      )
+    );
+  } catch (error) {
+    console.error('Error rejecting property:', error);
+    res.status(500).json(
+      errorResponse('Failed to reject property', 500)
+    );
+  }
+};
+
 module.exports = {
   getAllProperties,
   getPropertyById,
@@ -1068,5 +1235,7 @@ module.exports = {
   submitPropertyPublic,
   getFilterOptions,
   getFavoriteProperties,
-  createPropertyWithFiles  // Ensure this is exported
+  createPropertyWithFiles,
+  approveProperty,
+  rejectProperty  // Add this export
 };

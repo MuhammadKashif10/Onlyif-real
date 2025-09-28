@@ -87,8 +87,8 @@ export const adminApi = {
   },
   
   // Keep other property methods using admin routes for admin-specific actions
-  approveProperty: (propertyId: string) => apiClient.patch(`/admin/properties/${propertyId}/approve`),
-  rejectProperty: (propertyId: string) => apiClient.patch(`/admin/properties/${propertyId}/reject`),
+  approveProperty: (propertyId: string) => apiClient.patch(`/properties/${propertyId}/approve`),
+  rejectProperty: (propertyId: string) => apiClient.patch(`/properties/${propertyId}/reject`),
   updateProperty: (propertyId: string, data: any) => apiClient.patch(`/admin/properties/${propertyId}`, data),
   assignPropertyToAgent: (propertyId: string, data: { agentId: string }) => apiClient.patch(`/admin/properties/${propertyId}/assign-agent`, data),
   deleteProperty: (propertyId: string) => apiClient.delete(`/admin/properties/${propertyId}`),

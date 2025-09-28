@@ -18,7 +18,9 @@ const {
   submitPropertyPublic,
   getFilterOptions,
   getFavoriteProperties,
-  createPropertyWithFiles
+  createPropertyWithFiles,
+  approveProperty,
+  rejectProperty  // Add this import
 } = require('../controllers/propertyController');
 
 // Public routes
@@ -31,12 +33,15 @@ router.get('/:id/price-check', asyncHandler(getPriceCheck));
 router.post('/public-submit', asyncHandler(submitPropertyPublic));
 
 // Protected routes (require authentication)
-router.post('/', authMiddleware, asyncHandler(createProperty));
+// Use uploadFields middleware for file uploads
+router.post('/', authMiddleware, uploadFields, asyncHandler(createProperty));
+// Add the missing upload route for file uploads (alternative endpoint)
+router.post('/upload', authMiddleware, uploadFields, asyncHandler(createPropertyWithFiles));
 router.put('/:id', authMiddleware, asyncHandler(updateProperty));
 router.delete('/:id', authMiddleware, asyncHandler(deleteProperty));
 router.post('/:id/assign-agent', authMiddleware, asyncHandler(assignAgent));
-
-// File upload route - this handles property creation with files
-router.post('/upload', authMiddleware, uploadFields, asyncHandler(createPropertyWithFiles));
+// Admin approval and rejection routes
+router.patch('/:id/approve', authMiddleware, asyncHandler(approveProperty));
+router.patch('/:id/reject', authMiddleware, asyncHandler(rejectProperty));
 
 module.exports = router;

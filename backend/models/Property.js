@@ -206,8 +206,8 @@ const propertySchema = new mongoose.Schema({
   
   status: {
     type: String,
-    enum: ['draft', 'pending', 'approved', 'rejected', 'active', 'sold', 'withdrawn', 'expired'],
-    default: 'draft'
+    enum: ['draft', 'pending', 'review', 'active', 'sold', 'withdrawn'],
+    default: 'pending' // Changed from 'draft' to 'pending'
   },
   
   // Enhanced multi-agent support with history

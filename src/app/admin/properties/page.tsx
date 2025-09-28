@@ -11,7 +11,7 @@ interface Property {
   _id: string; // Change from 'id' to '_id' to match MongoDB
   title: string;
   price: number;
-  status: "pending" | "approved" | "rejected" | "active" | "sold";
+  status: "draft" | "review" | "active" | "sold" | "withdrawn";
   agents?: Array<{
     agent: {
       _id: string;
@@ -112,8 +112,6 @@ const PropertiesPage = () => {
       return adminApi.approveProperty(propertyId);
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["admin-agents"] });
-
       queryClient.invalidateQueries({ queryKey: ["admin-properties"] });
       setNotification({
         type: "success",
@@ -123,20 +121,8 @@ const PropertiesPage = () => {
     },
     onError: (error: any) => {
       console.error("Error approving property:", error);
-
-      // Handle specific error cases
-      if (error.response?.status === 401) {
-        setNotification({
-          type: "error",
-          message: "Session expired. Please log in again.",
-        });
-        // Optionally redirect to login
-        setTimeout(() => router.push("/admin/login"), 2000);
-      } else if (error.response?.status === 403) {
-        setNotification({
-          type: "error",
-          message: "Access denied. Admin privileges required.",
-        });
+      if (error.message === "Property ID is required for approval") {
+        setNotification({ type: "error", message: "Property ID is required for approval" });
       } else {
         const errorMessage =
           error.response?.data?.message ||
@@ -167,11 +153,15 @@ const PropertiesPage = () => {
     },
     onError: (error: any) => {
       console.error("Error rejecting property:", error);
-      const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        "Failed to reject property";
-      setNotification({ type: "error", message: errorMessage });
+      if (error.message === "Property ID is required for rejection") {
+        setNotification({ type: "error", message: "Property ID is required for rejection" });
+      } else {
+        const errorMessage =
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to reject property";
+        setNotification({ type: "error", message: errorMessage });
+      }
       setTimeout(() => setNotification(null), 5000);
     },
   });
@@ -357,6 +347,19 @@ const PropertiesPage = () => {
   }, [properties, debouncedSearchTerm, statusFilter]);
   console.log("🚀 ~ filteredProperties:", filteredProperties);
 
+  // Add debugging for properties data
+  useEffect(() => {
+    console.log("=== PROPERTIES DEBUG ===");
+    console.log("Properties data:", propertiesData);
+    console.log("Properties array:", properties);
+    console.log("Filtered properties:", filteredProperties);
+    if (filteredProperties.length > 0) {
+      console.log("First property structure:", filteredProperties[0]);
+      console.log("First property ID:", filteredProperties[0]._id);
+      console.log("First property keys:", Object.keys(filteredProperties[0]));
+    }
+  }, [propertiesData,  filteredProperties]);
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -437,6 +440,9 @@ const PropertiesPage = () => {
                 <option key="pending" value="pending">
                   Pending
                 </option>
+                <option key="review" value="review">
+                  Review
+                </option>
                 <option key="approved" value="approved">
                   Approved
                 </option>
@@ -510,7 +516,7 @@ const PropertiesPage = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredProperties.map((property) => (
-                    <tr key={property._id}>
+                    <tr key={property._id || property.id}>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
                           <div className="text-sm font-medium text-gray-900">
@@ -531,9 +537,9 @@ const PropertiesPage = () => {
                           className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                             property.status === "active"
                               ? "bg-green-100 text-green-800"
-                              : property.status === "pending"
+                              : property.status === "draft"
                               ? "bg-yellow-100 text-yellow-800"
-                              : property.status === "approved"
+                              : property.status === "review"
                               ? "bg-blue-100 text-blue-800"
                               : property.status === "sold"
                               ? "bg-gray-100 text-gray-800"
@@ -594,12 +600,27 @@ const PropertiesPage = () => {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                        {property.status === "pending" && (
+
+                        {(property.status === "draft" || property.status === "review") && (
                           <>
                             <button
-                              onClick={() =>
-                                approvePropertyMutation.mutate(property._id)
-                              }
+                              onClick={() => {
+                                console.log("=== APPROVE BUTTON DEBUG ===");
+                                console.log("Full property object:", property);
+                                console.log("Property ID (_id):", property._id);
+                                console.log("Property ID (id):", property.id);
+                                console.log("Property keys:", Object.keys(property));
+                                
+                                const propertyId = property._id || property.id;
+                                console.log("Final property ID to use:", propertyId);
+                                
+                                if (!propertyId) {
+                                  console.error("Property ID is missing!");
+                                  setNotification({ type: "error", message: "Property ID is required for approval" });
+                                  return;
+                                }
+                                approvePropertyMutation.mutate(propertyId);
+                              }}
                               className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
                               disabled={approvePropertyMutation.isPending}
                             >
@@ -631,9 +652,23 @@ const PropertiesPage = () => {
                               )}
                             </button>
                             <button
-                              onClick={() =>
-                                rejectPropertyMutation.mutate(property._id)
-                              }
+                              onClick={() => {
+                                console.log("=== REJECT BUTTON DEBUG ===");
+                                console.log("Full property object:", property);
+                                console.log("Property ID (_id):", property._id);
+                                console.log("Property ID (id):", property.id);
+                                console.log("Property keys:", Object.keys(property));
+                                
+                                const propertyId = property._id || property.id;
+                                console.log("Final property ID to use:", propertyId);
+                                
+                                if (!propertyId) {
+                                  console.error("Property ID is missing!");
+                                  setNotification({ type: "error", message: "Property ID is required for rejection" });
+                                  return;
+                                }
+                                rejectPropertyMutation.mutate(propertyId);
+                              }}
                               className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
                               disabled={rejectPropertyMutation.isPending}
                             >
