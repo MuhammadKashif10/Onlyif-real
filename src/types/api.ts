@@ -12,6 +12,7 @@ export interface Property {
   price: number;
   beds: number;
   baths: number;
+  carSpaces?: number;
   size: number; // Maps to squareMeters from backend
   yearBuilt?: number;
   propertyType: string;

@@ -23,7 +23,7 @@ const createProperty = async (req, res) => {
     const {
       title, street, city, state, zipCode, price, beds, baths,
       squareMeters, propertyType, description, contactName, 
-      contactEmail, contactPhone, yearBuilt, lotSize
+      contactEmail, contactPhone, yearBuilt, lotSize, carSpaces
     } = req.body;
 
     // Validate required fields
@@ -54,6 +54,7 @@ const createProperty = async (req, res) => {
       price: parseFloat(price),
       beds: parseInt(beds),
       baths: parseFloat(baths),
+      carSpaces: carSpaces ? parseInt(carSpaces) : undefined,
       squareMeters: parseFloat(squareMeters),
       propertyType: propertyType.toLowerCase().replace(/\s+/g, '-'),
       description: description ? description.trim() : '',
@@ -217,6 +218,7 @@ const getPropertyById = async (req, res) => {
       price: propertyObj.price || 0,
       beds: propertyObj.beds || 0,
       baths: propertyObj.baths || 0,
+      carSpaces: propertyObj.carSpaces || 0,
       size: propertyObj.squareMeters || 0,
       yearBuilt: propertyObj.yearBuilt || null,
       propertyType: propertyObj.propertyType || '',
@@ -497,6 +499,7 @@ const getAllProperties = async (req, res) => {
       price: propertyObj.price || 0,
       beds: propertyObj.beds || 0,
       baths: propertyObj.baths || 0,
+      carSpaces: propertyObj.carSpaces || 0,
       size: propertyObj.squareMeters || 0, // Map squareMeters to size
       yearBuilt: propertyObj.yearBuilt || null,
       propertyType: propertyObj.propertyType || '',
@@ -838,7 +841,7 @@ const createPropertyWithFiles = async (req, res) => {
     const {
       title, street, city, state, zipCode, price, beds, baths,
       squareMeters, propertyType, yearBuilt, description,
-      contactName, contactEmail, contactPhone, lotSize
+      contactName, contactEmail, contactPhone, lotSize, carSpaces
     } = req.body;
 
     console.log('📝 Form data received:', {
@@ -1040,6 +1043,7 @@ const createPropertyWithFiles = async (req, res) => {
       price: parseFloat(price),
       beds: parseInt(beds),
       baths: parseFloat(baths),
+      carSpaces: carSpaces ? parseInt(carSpaces) : undefined,
       squareMeters: parseFloat(squareMeters),
       propertyType: propertyType.toLowerCase().replace(/\s+/g, '-'),
       description: description ? description.trim() : '',

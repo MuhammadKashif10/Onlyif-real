@@ -244,6 +244,7 @@ export default function PropertyGrid({
                   size={property.size}
                   image={property.mainImage || '/images/default-property.jpg'}
                   featured={property.featured}
+                  carSpaces={property.carSpaces}
                   onClick={onPropertyClick ? () => onPropertyClick(property) : undefined}
                 />
               );

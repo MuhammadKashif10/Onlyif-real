@@ -99,6 +99,12 @@ const propertySchema = new mongoose.Schema({
     max: [50, 'Bathrooms cannot exceed 50']  // Increased limit for commercial/large properties
   },
   
+  carSpaces: {
+    type: Number,
+    min: [0, 'Car spaces cannot be negative'],
+    max: [20, 'Car spaces cannot exceed 20'],
+    default: 0
+  },
   squareMeters: {
     type: Number,
     required: [true, 'Square meters is required'],

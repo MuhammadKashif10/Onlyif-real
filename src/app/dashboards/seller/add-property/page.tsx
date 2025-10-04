@@ -134,6 +134,7 @@ export default function AddProperty() {
       formDataToSend.append('price', formData.price);
       formDataToSend.append('beds', formData.bedrooms);
       formDataToSend.append('baths', formData.bathrooms);
+      if (formData.carSpaces) formDataToSend.append('carSpaces', formData.carSpaces);
       formDataToSend.append('squareMeters', formData.squareMeters);
       formDataToSend.append('propertyType', formData.propertyType.toLowerCase().replace(' ', '-'));
       formDataToSend.append('description', formData.description);
@@ -313,6 +314,18 @@ export default function AddProperty() {
                     />
                     
                     <InputField
+                      label="Car Spaces"
+                      type="number"
+                      placeholder="Number of car spaces (garage/parking)"
+                      value={formData.carSpaces}
+                      onChange={(e) => handleInputChange('carSpaces', e.target.value)}
+                      id="carSpaces"
+                      name="carSpaces"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+                    <InputField
                       label="Square Meters"
                       type="number"
                       placeholder="Property size in sq m"
@@ -321,45 +334,6 @@ export default function AddProperty() {
                       required
                       id="squareMeters"
                       name="squareMeters"
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Property Type</label>
-                      <select
-                        value={formData.propertyType}
-                        onChange={(e) => handleInputChange('propertyType', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                      >
-                        <option value="Single Family">Single Family</option>
-                        <option value="Condo">Condo</option>
-                        <option value="Townhouse">Townhouse</option>
-                        <option value="Loft">Loft</option>
-                        <option value="Multi-Family">Multi-Family</option>
-                      </select>
-                    </div>
-                    
-                    <InputField
-                      label="Year Built"
-                      type="number"
-                      placeholder="Year built"
-                      value={formData.yearBuilt}
-                      onChange={(e) => handleInputChange('yearBuilt', e.target.value)}
-                      id="yearBuilt"
-                      name="yearBuilt"
-                    />
-                    
-                    <InputField
-                      label="Lot Size (acres)"
-                      type="number"
-                      step="0.01"
-                      placeholder="Lot size in acres"
-                      value={formData.lotSize}
-                      onChange={(e) => handleInputChange('lotSize', e.target.value)}
-                      id="lotSize"
-                      name="lotSize"
                     />
                   </div>
                 </section>

@@ -22,7 +22,7 @@ export default function MapListingsLayout({
   showPagination = true,
   itemsPerPage = 12,
   featuredOnly = false,
-  showMap = false // Default to false for full width
+  showMap = true,
 }: MapListingsLayoutProps) {
   const router = useRouter();
   // Fix: Access properties from state object
@@ -35,13 +35,12 @@ export default function MapListingsLayout({
   // Filter properties based on featuredOnly prop
   const filteredProperties = useMemo(() => {
     if (!properties) return [];
-    
     let filtered = [...properties];
-    
+
     if (featuredOnly) {
       filtered = filtered.filter(property => property.featured);
     }
-    
+
     return filtered;
   }, [properties, featuredOnly]);
 
@@ -175,6 +174,7 @@ export default function MapListingsLayout({
                   size={property.size}
                   image={property.mainImage || '/images/default-property.jpg'}
                   featured={property.featured}
+                  carSpaces={property.carSpaces}
                   onClick={() => handleViewDetails(property)}
                 />
               );

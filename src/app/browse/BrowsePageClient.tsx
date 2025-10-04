@@ -115,7 +115,9 @@ export default function BrowsePageClient() {
               Find properties that match your criteria and budget.
             </p>
             <div className="mt-6 text-sm text-gray-500">
-              <span className="font-semibold">{stats.totalProperties.toLocaleString()}+ homes available</span>
+              <span className="font-semibold">
+                {Intl.NumberFormat('en-US').format(stats.totalProperties)}+ homes available
+              </span>
               <span className="mx-2">•</span>
               <span>Updated in real-time</span>
             </div>

@@ -1,3 +1,4 @@
+// Top-level imports (ensure this import is near other imports)
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -23,6 +24,7 @@ interface PropertyCardProps {
   featured?: boolean;
   className?: string;
   onClick?: () => void;
+  carSpaces?: number | null | undefined;
 }
 
 export default function PropertyCard({
@@ -38,7 +40,8 @@ export default function PropertyCard({
   status,
   featured = false,
   className = '',
-  onClick
+  onClick,
+  carSpaces
 }: PropertyCardProps) {
   const [targetPath, setTargetPath] = useState('/signin');
 
@@ -95,7 +98,7 @@ export default function PropertyCard({
 
   // --- Size, Price, Safe Formatters (your original functions) ---
   const formatSize = (size: number | undefined | null) =>
-    size == null || isNaN(size) ? 'N/A' : `${size.toLocaleString()} m²`;
+    size == null || isNaN(size) ? 'N/A' : `${size.toLocaleString()}`;
 
   const formatSafePrice = (price: number | null) =>
     price == null || isNaN(price) ? 'Price on Request' : formatCurrencyCompact(price);
@@ -155,13 +158,27 @@ export default function PropertyCard({
               {formatSafePrice(price)}
             </span>
             <div className="flex gap-4 text-sm text-gray-600">
-              {beds && <span>{beds} Beds</span>}
-              {baths && <span>{baths} Baths</span>}
+              {/* Number first, then colored icon */}
+              {beds != null && !isNaN(beds) && (
+                <span className="inline-flex items-center gap-1">
+                  {formatSafeNumber(beds)}
+                  <Bed className="w-4 h-4 text-blue-600" />
+                </span>
+              )}
+              {baths != null && !isNaN(baths) && (
+                <span className="inline-flex items-center gap-1">
+                  {formatSafeNumber(baths)}
+                  <Bath className="w-4 h-4 text-teal-600" />
+                </span>
+              )}
+              {carSpaces != null && !isNaN(carSpaces) && (
+                <span className="inline-flex items-center gap-1">
+                  {formatSafeNumber(carSpaces)}
+                  <Car className="w-4 h-4 text-amber-600" />
+                </span>
+              )}
             </div>
           </div>
-          {size && (
-            <div className="mt-2 text-sm text-gray-600">{formatSize(size)}</div>
-          )}
           <div className="mt-4 text-blue-600 font-medium text-sm">
             View Details →
           </div>
@@ -170,3 +187,5 @@ export default function PropertyCard({
     </article>
   );
 }
+// Module imports
+import { Bed, Bath, Car } from 'lucide-react'
