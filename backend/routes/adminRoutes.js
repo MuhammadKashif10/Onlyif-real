@@ -221,66 +221,97 @@ router.get('/activity', asyncHandler(async (req, res) => {
       .limit(5)
       .populate('owner', 'name')
       .select('title createdAt status');
-    
-    const recentAgents = await User.find({ 
-      role: 'agent', 
-      isDeleted: false 
+
+    // Include recent buyer/seller registrations
+    const recentUsers = await User.find({
+      role: { $in: ['buyer', 'seller'] },
+      isDeleted: false
+    })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select('name role createdAt');
+
+    const recentAgents = await User.find({
+      role: 'agent',
+      isDeleted: false
     })
       .sort({ createdAt: -1 })
       .limit(3)
       .select('name createdAt');
-    
+
     const recentPayments = await Transaction.find({ status: 'completed' })
       .sort({ createdAt: -1 })
       .limit(3)
       .select('amount createdAt');
-    
+
     // Format activities
     const activities = [];
-    
+
     recentProperties.forEach(property => {
+      const msg = `New property listed: ${property.title}`;
       activities.push({
         id: `property-${property._id}`,
         type: 'property',
-        message: `New property listed: ${property.title}`,
+        action: msg,            // keep for frontend compatibility
+        message: msg,           // semantic field
         timestamp: property.createdAt,
         status: property.status
       });
     });
-    
+
+    recentUsers.forEach(user => {
+      const msg = `New ${user.role} added: ${user.name}`;
+      activities.push({
+        id: `user-${user._id}`,
+        type: 'user',
+        action: msg,
+        message: msg,
+        timestamp: user.createdAt,
+        status: 'active'
+      });
+    });
+
     recentAgents.forEach(agent => {
+      const msg = `Agent registration: ${agent.name}`;
       activities.push({
         id: `agent-${agent._id}`,
         type: 'agent',
-        message: `Agent registration: ${agent.name}`,
+        action: msg,
+        message: msg,
         timestamp: agent.createdAt,
         status: 'pending'
       });
     });
-    
+
     recentPayments.forEach(payment => {
+      const msg = `Payment received: $${payment.amount}`;
       activities.push({
         id: `payment-${payment._id}`,
         type: 'payment',
-        message: `Payment received: $${payment.amount}`,
+        action: msg,
+        message: msg,
         timestamp: payment.createdAt,
         status: 'completed'
       });
     });
-    
+
     // Sort by timestamp and limit to 10
     activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-    
+
+    // Wrap under `data` to match frontend expectations
     res.json({
       success: true,
-      activities: activities.slice(0, 10)
+      data: {
+        activities: activities.slice(0, 10)
+      },
+      message: 'Recent activity fetched successfully'
     });
   } catch (error) {
     console.error('Error fetching recent activity:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch recent activity',
-      activities: []
+      message: 'Failed to fetch recent activity',
+      data: { activities: [] }
     });
   }
 }));
@@ -411,8 +442,9 @@ router.get('/properties', asyncHandler(async (req, res) => {
     // If limit is 0, return all properties without pagination
     if (limit === 0) {
       const properties = await Property.find(query)
-        .populate('owner', 'name email')
+        .populate('owner', 'name email phone')
         .populate('assignedAgent', 'name email')
+        .populate('agents.agent', 'name email')
         .sort({ createdAt: -1 });
       
       return res.json({
@@ -425,8 +457,9 @@ router.get('/properties', asyncHandler(async (req, res) => {
     // With pagination
     const skip = (page - 1) * limit;
     const properties = await Property.find(query)
-      .populate('owner', 'name email')
+      .populate('owner', 'name email phone')
       .populate('assignedAgent', 'name email')
+      .populate('agents.agent', 'name email')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -464,8 +497,9 @@ router.patch('/properties/:id/approve', asyncHandler(async (req, res) => {
         approvedBy: req.user._id
       },
       { new: true }
-    ).populate('owner', 'name email')
-     .populate('assignedAgent', 'name email');
+    ).populate('owner', 'name email phone')
+     .populate('assignedAgent', 'name email')
+   .populate('agents.agent', 'name email');
 
     if (!property) {
       return res.status(404).json({
@@ -581,7 +615,10 @@ router.patch('/properties/:id/assign-agent', asyncHandler(async (req, res) => {
     
     console.log('Property found:', { id: property._id, title: property.title });
 
-    // Check if agent is already assigned
+    // Ensure agents array exists
+    property.agents = property.agents || [];
+
+    // Check if agent is already assigned (active)
     const existingAgentIndex = property.agents.findIndex(
       agentEntry => agentEntry.agent.toString() === agentId && agentEntry.isActive
     );
@@ -594,7 +631,16 @@ router.patch('/properties/:id/assign-agent', asyncHandler(async (req, res) => {
       });
     }
 
-    // Add new agent to the agents array
+    // Deactivate any previously active agents
+    property.agents = property.agents.map(entry => ({
+      ...entry,
+      isActive: false
+    }));
+
+    // Update the primary assignedAgent field to reflect reassignment
+    property.assignedAgent = agentId;
+
+    // Add new agent to the agents array as active
     const newAgent = {
       agent: agentId,
       role: 'listing',
@@ -614,6 +660,7 @@ router.patch('/properties/:id/assign-agent', asyncHandler(async (req, res) => {
 
     // Populate the agent details for response
     await savedProperty.populate('agents.agent', 'name email');
+    await savedProperty.populate('assignedAgent', 'name email');
     console.log('=== ASSIGNMENT SUCCESSFUL ===');
 
     res.json({

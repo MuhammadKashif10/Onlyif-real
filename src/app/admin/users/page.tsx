@@ -20,6 +20,13 @@ interface User {
   // Legacy fields for backward compatibility
   isActive?: boolean;
   isSuspended?: boolean;
+  // Fallbacks for inconsistent date fields
+  joinedDate?: string;
+  created_at?: string;
+  createdAt: string;
+  // Legacy fields for backward compatibility
+  isActive?: boolean;
+  isSuspended?: boolean;
 }
 
 interface UserStats {
@@ -389,7 +396,7 @@ export default function UsersPage() {
                           </div>
                           <div className="ml-4">
                             <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                            <div className="text-sm text-gray-500">Joined {new Date(user.createdAt).toLocaleDateString()}</div>
+                            <div className="text-sm text-gray-500">Joined {formatJoinedDate(user)}</div>
                           </div>
                         </div>
                       </td>
@@ -485,7 +492,7 @@ export default function UsersPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Joined</label>
-                    <p className="text-sm text-gray-900">{new Date(selectedUser.createdAt).toLocaleDateString()}</p>
+                    <p className="text-sm text-gray-900">{formatJoinedDate(selectedUser)}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Last Login</label>
@@ -510,3 +517,15 @@ export default function UsersPage() {
     </AdminLayout>
   );
 }
+
+// Helper to safely format joined date
+const formatJoinedDate = (u: User): string => {
+  const raw =
+    u.createdAt ||
+    (u as any).joinedDate ||
+    (u as any).created_at ||
+    '';
+  if (!raw) return 'Unknown';
+  const d = new Date(raw);
+  return isNaN(d.getTime()) ? 'Unknown' : d.toLocaleDateString();
+};

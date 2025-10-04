@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
@@ -8,6 +8,7 @@ import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Users, Building, UserCheck, DollarSign, TrendingUp, Activity } from 'lucide-react';
+// Removed: import { toast, Toaster } from 'react-hot-toast';
 
 // Utility function for authenticated API calls
 const authenticatedFetch = async (url: string, options: RequestInit = {}) => {
@@ -139,29 +140,26 @@ export default function AdminDashboardPage() {
     refetchOnWindowFocus: false
   });
 
-  // Redirect if not admin
+  // Track previous activity IDs to detect new events (no notifications)
+  const prevActivityIdsRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
-    if (!authLoading && (!user || user.type !== 'admin')) {
-      router.push('/admin/login');
+    const activities = activityData?.data?.activities || [];
+    if (!activities || activities.length === 0) {
+      prevActivityIdsRef.current = new Set();
+      return;
     }
-  }, [user, authLoading, router]);
 
-  // Show loading while checking authentication
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Loading...</div>
-      </div>
-    );
-  }
-
-  // Don't render if not admin (will redirect)
-  if (!user || user.type !== 'admin') {
-    return null;
-  }
+    // Update tracker only; no toast notifications
+    const currentIds = new Set<string>(activities.map((a: any) => a.id));
+    prevActivityIdsRef.current = currentIds;
+  }, [activityData]);
 
   return (
     <AdminLayout>
+      {/* Removed Toaster and all toast calls */}
+      {/* <Toaster position="top-right" /> */}
+
       <div className="space-y-6">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Dashboard Overview</h2>
@@ -273,10 +271,22 @@ export default function AdminDashboardPage() {
               <div className="space-y-4">
                 {activityData.data.activities.slice(0, 5).map((activity: any, index: number) => (
                   <div key={index} className="flex items-center space-x-4">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <div className={`w-2 h-2 rounded-full ${
+                      activity.type === 'property' ? 'bg-blue-500' :
+                      activity.type === 'user' ? 'bg-green-500' :
+                      activity.type === 'agent' ? 'bg-yellow-500' :
+                      activity.type === 'payment' ? 'bg-purple-500' :
+                      'bg-gray-400'
+                    }`}></div>
                     <div className="flex-1">
-                      <p className="text-sm font-medium">{activity.action}</p>
-                      <p className="text-xs text-muted-foreground">{activity.timestamp}</p>
+                      <p className="text-sm font-medium">{activity.action || activity.message}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {(() => {
+                          const ts = activity.timestamp;
+                          const date = typeof ts === 'string' || typeof ts === 'number' ? new Date(ts) : ts;
+                          return isNaN(date?.getTime?.() ?? NaN) ? 'Unknown time' : date.toLocaleString();
+                        })()}
+                      </p>
                     </div>
                   </div>
                 ))}

@@ -7,6 +7,16 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { adminApi } from "@/api/admin";
 
+type Address =
+  | string
+  | {
+      street?: string;
+      city?: string;
+      state?: string;
+      zipCode?: string;
+      country?: string;
+    };
+
 interface Property {
   _id: string; // Change from 'id' to '_id' to match MongoDB
   title: string;
@@ -21,6 +31,11 @@ interface Property {
     role: string;
     isActive: boolean;
   }>;
+  assignedAgent?: {
+    _id?: string;
+    name: string;
+    email: string;
+  };
   seller?: {
     _id?: string;
     name: string;
@@ -31,8 +46,19 @@ interface Property {
     totalProperties?: number;
     profileImage?: string;
   };
+  owner?: {
+    _id?: string;
+    name: string;
+    email: string;
+    phone?: string;
+  };
+  contactInfo?: {
+    name: string;
+    email: string;
+    phone?: string;
+  };
   createdAt: string;
-  address: string;
+  address: Address;
 }
 
 interface Agent {
@@ -324,6 +350,16 @@ const PropertiesPage = () => {
   const agents = agentsData?.data || [];
 
   // Add the missing filteredProperties using useMemo
+  const formatAddress = (address: Property['address']) => {
+    if (!address) return "";
+    if (typeof address === "string") {
+      return address.replace(/\bUS\b/g, "AUS");
+    }
+    const { street, city, state, zipCode, country } = address;
+    const normalizedCountry = country === "US" ? "AUS" : country;
+    return [street, city, state, zipCode, normalizedCountry].filter(Boolean).join(", ");
+  };
+
   const filteredProperties = useMemo(() => {
     if (!properties.length) return [];
 
@@ -331,11 +367,9 @@ const PropertiesPage = () => {
       // Apply search filter
       const matchesSearch =
         !debouncedSearchTerm ||
-        property.title
-          ?.toLowerCase()
-          .includes(debouncedSearchTerm.toLowerCase()) ||
-        property.address
-          ?.toLowerCase()
+        property.title?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        formatAddress(property.address)
+          .toLowerCase()
           .includes(debouncedSearchTerm.toLowerCase());
 
       // Apply status filter
@@ -523,7 +557,7 @@ const PropertiesPage = () => {
                             {property.title}
                           </div>
                           <div className="text-sm text-gray-500">
-                            {property.address}
+                            {formatAddress(property.address)}
                           </div>
                         </div>
                       </td>
@@ -567,26 +601,46 @@ const PropertiesPage = () => {
                         )}
                       </td> */}
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {property.agent?.name ? (
-                          <span className="text-gray-400">
-                            {property.agent.name}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400">
-                            No agent assigned
-                          </span>
-                        )}
+                        {(() => {
+                          const activeAgentName =
+                            property.assignedAgent?.name ||
+                            property.agents?.find((a) => a.isActive)?.agent?.name;
+                          return activeAgentName ? (
+                            <span className="text-gray-900">{activeAgentName}</span>
+                          ) : (
+                            <span className="text-gray-400">No agent assigned</span>
+                          );
+                        })()}
                       </td>
 
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {property.seller
-                            ? property.seller.name
-                            : "No seller info"}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {property.seller ? property.seller.email : "N/A"}
-                        </div>
+                        {(() => {
+                          const sellerName =
+                            property.seller?.name ||
+                            property.contactInfo?.name ||
+                            property.owner?.name;
+
+                          const sellerPhone =
+                            property.seller?.phone ||
+                            property.contactInfo?.phone ||
+                            property.owner?.phone;
+
+                          if (!sellerName && !sellerPhone) {
+                            return (
+                              <>
+                                <div className="text-sm text-gray-900">No seller info</div>
+                                <div className="text-sm text-gray-500">N/A</div>
+                              </>
+                            );
+                          }
+
+                          return (
+                            <>
+                              <div className="text-sm text-gray-900">{sellerName || 'Unknown'}</div>
+                              <div className="text-sm text-gray-500">{sellerPhone || 'N/A'}</div>
+                            </>
+                          );
+                        })()}
                         {property.seller && (
                           <button
                             onClick={() => {
@@ -707,7 +761,8 @@ const PropertiesPage = () => {
                             console.log("📋 Property Object:", property);
                             console.log("📝 Property Title:", property.title);
 
-                            if (!property.id) {
+                            const propertyId = property._id || property.id;
+                            if (!propertyId) {
                               console.error("❌ Property ID is missing!");
                               setNotification({
                                 type: "error",
@@ -723,7 +778,7 @@ const PropertiesPage = () => {
 
                             console.log(
                               "✅ Modal should open with property:",
-                              property._id
+                              propertyId
                             );
                           }}
                           className="text-blue-600 hover:text-blue-900 text-sm"
@@ -843,10 +898,9 @@ const PropertiesPage = () => {
                   onClick={() => {
                     console.log("🚀 Assign Agent Button Clicked in Modal");
                     console.log("📋 Selected Property:", selectedProperty);
-                    console.log("🆔 Property ID:", selectedProperty?._id);
+                    console.log("🆔 Property ID:", selectedProperty?._id || selectedProperty?.id);
                     console.log("👤 Selected Agent:", selectedAgent);
 
-                    // Validation checks
                     if (!selectedProperty) {
                       console.error("❌ No property selected");
                       setNotification({
@@ -856,7 +910,8 @@ const PropertiesPage = () => {
                       return;
                     }
 
-                    if (!selectedProperty.id) {
+                    const propertyId = selectedProperty._id || (selectedProperty as any).id;
+                    if (!propertyId) {
                       console.error("❌ Property ID is missing");
                       setNotification({
                         type: "error",
@@ -874,13 +929,9 @@ const PropertiesPage = () => {
                       return;
                     }
 
-                    // ObjectId format validation (24 character hex string)
                     const objectIdRegex = /^[0-9a-fA-F]{24}$/;
-                    if (!objectIdRegex.test(selectedProperty.id)) {
-                      console.error(
-                        "❌ Invalid Property ID format:",
-                        selectedProperty._id
-                      );
+                    if (!objectIdRegex.test(propertyId)) {
+                      console.error("❌ Invalid Property ID format:", propertyId);
                       setNotification({
                         type: "error",
                         message:
@@ -890,10 +941,7 @@ const PropertiesPage = () => {
                     }
 
                     if (!objectIdRegex.test(selectedAgent)) {
-                      console.error(
-                        "❌ Invalid Agent ID format:",
-                        selectedAgent
-                      );
+                      console.error("❌ Invalid Agent ID format:", selectedAgent);
                       setNotification({
                         type: "error",
                         message:
@@ -902,17 +950,14 @@ const PropertiesPage = () => {
                       return;
                     }
 
-                    console.log(
-                      "✅ All validations passed. Making API call..."
-                    );
+                    console.log("✅ All validations passed. Making API call...");
                     console.log("📤 API Call Parameters:", {
-                      propertyId: selectedProperty.id,
+                      propertyId,
                       agentId: selectedAgent,
                     });
 
-                    // Make the API call
                     assignAgentMutation.mutate({
-                      propertyId: selectedProperty.id,
+                      propertyId,
                       agentId: selectedAgent,
                     });
                   }}

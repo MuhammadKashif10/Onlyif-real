@@ -210,6 +210,12 @@ const propertySchema = new mongoose.Schema({
     enum: ['draft', 'pending', 'review', 'active', 'sold', 'withdrawn', 'rejected'],
     default: 'pending'
   },
+  // Add primary assigned agent reference for quick access
+  assignedAgent: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
   
   // Enhanced multi-agent support with history
   agents: [{
