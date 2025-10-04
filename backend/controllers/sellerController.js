@@ -1,5 +1,6 @@
 const Property = require('../models/Property');
 const CashOffer = require('../models/CashOffer');
+const mongoose = require('mongoose');
 const { successResponse, errorResponse } = require('../utils/responseFormatter');
 
 // @desc    Get seller overview statistics
@@ -10,17 +11,27 @@ const getSellerOverview = async (req, res) => {
     const sellerId = req.params.id;
     
     // Verify the seller can only access their own data
-    if (req.user.role !== 'seller' || req.user.id !== sellerId) {
+    // Convert both IDs to strings for proper comparison
+    if (req.user.role !== 'seller' || req.user.id.toString() !== sellerId) {
       return res.status(403).json(
         errorResponse('Access denied. You can only view your own overview.', 403)
       );
     }
 
-    // Get seller's properties
+    // Convert sellerId to ObjectId for database query
+    const sellerObjectId = new mongoose.Types.ObjectId(sellerId);
+
+    console.log('Seller ID from params:', sellerId);
+    console.log('User ID from token:', req.user.id.toString());
+    console.log('Seller ObjectId for query:', sellerObjectId);
+
+    // Get seller's properties - use ObjectId for owner field
     const properties = await Property.find({ 
-      owner: sellerId, 
+      owner: sellerObjectId, 
       isDeleted: false 
     }).select('_id price status dateListed');
+
+    console.log('Properties found in overview:', properties.length);
 
     const propertyIds = properties.map(p => p._id);
 
@@ -68,9 +79,9 @@ const getSellerOverview = async (req, res) => {
       }
     }
 
-    // Calculate total views from properties
+    // Calculate total views from properties - use ObjectId for owner field
     const propertiesWithViews = await Property.find({ 
-      owner: sellerId, 
+      owner: sellerObjectId, 
       isDeleted: false 
     }).select('viewCount');
     
@@ -97,113 +108,64 @@ const getSellerOverview = async (req, res) => {
 const getSellerListings = async (req, res) => {
   try {
     const sellerId = req.params.id;
-    
-    // Verify the seller can only access their own data
-    if (req.user.role !== 'seller' || req.user.id !== sellerId) {
-      return res.status(403).json(
-        errorResponse('Access denied. You can only view your own listings.', 403)
-      );
+
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized',
+      });
     }
 
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
-    const status = req.query.status; // Optional status filter
+    if (req.user.role !== 'seller' || req.user.id.toString() !== sellerId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You can only view your own listings.',
+      });
+    }
 
-    // Build filter
-    const filter = { 
-      owner: sellerId, 
-      isDeleted: false 
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const skip = (page - 1) * limit;
+    const status = req.query.status;
+
+    const filter = {
+      owner: sellerId,
+      isDeleted: false,
     };
-    
+
     if (status) {
       filter.status = status;
     }
 
-    // Get total count
-    const total = await Property.countDocuments(filter);
+    const totalItems = await Property.countDocuments(filter);
 
-    // Get properties with populated data
     const properties = await Property.find(filter)
-      .populate('agents.agent', 'name email phone')
-      .select('title address price beds baths squareMeters status images dateListed viewCount daysOnMarket propertyType')
+      .select('title address price status images dateListed viewCount owner')
       .sort({ dateListed: -1 })
       .skip(skip)
       .limit(limit);
 
-    // Get offer counts for each property
-    const propertyIds = properties.map(p => p._id);
-    const offerCounts = await CashOffer.aggregate([
-      {
-        $match: {
-          property: { $in: propertyIds },
-          isDeleted: false
-        }
+    return res.status(200).json({
+      success: true,
+      data: properties,
+      meta: {
+        totalItems,
+        page,
+        limit,
       },
-      {
-        $group: {
-          _id: '$property',
-          totalOffers: { $sum: 1 },
-          pendingOffers: {
-            $sum: {
-              $cond: [
-                {
-                  $in: ['$status', ['submitted', 'under_review', 'inspection_scheduled', 'inspection_completed', 'offer_made', 'negotiating']]
-                },
-                1,
-                0
-              ]
-            }
-          }
-        }
-      }
-    ]);
-
-    // Create a map for quick lookup
-    const offerCountMap = {};
-    offerCounts.forEach(count => {
-      offerCountMap[count._id.toString()] = {
-        totalOffers: count.totalOffers,
-        pendingOffers: count.pendingOffers
-      };
     });
-
-    // Enhance properties with offer data
-    const enhancedProperties = properties.map(property => {
-      const propertyObj = property.toObject();
-      const offers = offerCountMap[property._id.toString()] || { totalOffers: 0, pendingOffers: 0 };
-      
-      return {
-        ...propertyObj,
-        inquiries: offers.totalOffers,
-        pendingInquiries: offers.pendingOffers,
-        views: propertyObj.viewCount || 0,
-        primaryImage: propertyObj.images?.find(img => img.isPrimary)?.url || propertyObj.images?.[0]?.url || null
-      };
-    });
-
-    const paginationMeta = {
-      currentPage: page,
-      totalPages: Math.ceil(total / limit),
-      totalItems: total,
-      itemsPerPage: limit,
-      hasNextPage: page < Math.ceil(total / limit),
-      hasPrevPage: page > 1
-    };
-
-    res.json(
-      successResponse(
-        enhancedProperties,
-        'Seller listings retrieved successfully',
-        200,
-        paginationMeta
-      )
-    );
   } catch (error) {
-    console.error('Error fetching seller listings:', error);
-    res.status(500).json(
-      errorResponse('Failed to fetch seller listings', 500)
-    );
+    console.error('Error in getSellerListings:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch seller listings',
+      data: [],
+      meta: {
+        totalItems: 0,
+        page: 1,
+        limit: 10,
+      },
+    });
   }
 };
 

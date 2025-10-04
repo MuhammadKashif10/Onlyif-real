@@ -1,6 +1,7 @@
 const Property = require('../models/Property');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
+const mongoose = require('mongoose');
 const corelogicService = require('../services/corelogicService');
 const emailService = require('../services/emailService');
 const { successResponse, errorResponse, paginationMeta } = require('../utils/responseFormatter');
@@ -37,7 +38,7 @@ const createProperty = async (req, res) => {
 
     // Create property data with proper structure
     const propertyData = {
-      owner: req.user.id,
+      owner: req.user.id, // ✅ This is correctly setting the owner field
       title: title.trim(),
       address: {
         street: street.trim(),
@@ -421,12 +422,11 @@ const getAllProperties = async (req, res) => {
   // Build filter object - Support status filtering from query params
   const filter = {};
   
-  // If status is provided in query, use it; otherwise use default public statuses
+  // Only filter by status if explicitly provided in query params
   if (req.query.status) {
     filter.status = req.query.status;
-  } else {
-    filter.status = { $in: ['active', 'pending', 'public'] };
   }
+  // Remove the default 'active' status filter to show all properties
   
   if (req.query.city) filter.city = new RegExp(req.query.city, 'i');
   if (req.query.state) filter.state = new RegExp(req.query.state, 'i');
@@ -1024,7 +1024,7 @@ const createPropertyWithFiles = async (req, res) => {
 
     // Create property data object
     const propertyData = {
-      owner: req.user.id, // Use authenticated user's ID
+      owner: new mongoose.Types.ObjectId(req.user.id), // Convert to ObjectId
       title: title.trim(),
       address: {
         street: street.trim(),
@@ -1051,7 +1051,7 @@ const createPropertyWithFiles = async (req, res) => {
       images,
       floorPlans,
       videos,
-      status: 'pending', // Changed from 'review' to 'pending' to match admin filter
+      status: 'review', // Changed from 'pending' to 'review' for proper admin workflow
       yearBuilt: yearBuilt ? parseInt(yearBuilt) : undefined,
       lotSize: lotSize ? parseFloat(lotSize) : undefined,
       // Set mainImage to first uploaded image

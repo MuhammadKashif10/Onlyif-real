@@ -731,9 +731,23 @@ const PropertiesPage = () => {
                           Assign Agent
                         </button>
                         <button
-                          onClick={() =>
-                            deletePropertyMutation.mutate(property._id)
-                          }
+                          onClick={() => {
+                            console.log("=== DELETE BUTTON DEBUG ===");
+                            console.log("Full property object:", property);
+                            console.log("Property ID (_id):", property._id);
+                            console.log("Property ID (id):", property.id);
+                            console.log("Property keys:", Object.keys(property));
+                            
+                            const propertyId = property._id || property.id;
+                            console.log("Final property ID to use:", propertyId);
+                            
+                            if (!propertyId) {
+                              console.error("Property ID is missing!");
+                              setNotification({ type: "error", message: "Property ID is required for deletion" });
+                              return;
+                            }
+                            deletePropertyMutation.mutate(propertyId);
+                          }}
                           className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
                           disabled={deletePropertyMutation.isPending}
                         >

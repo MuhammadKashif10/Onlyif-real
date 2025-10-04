@@ -372,12 +372,13 @@ const createAgent = async (req, res) => {
       name: name.trim(),
       email: email.toLowerCase().trim(),
       password: password, // Remove manual hashing - let pre-save middleware handle it
+      phone: phone ? phone.trim() : null, // Store phone at top level for consistency
       role: 'agent',
       isActive: true,
       experience: experience ? experience.trim() : null,
       location: location ? location.trim() : null,
       agentProfile: {
-        phone: phone || '+1234567890', // Provide a default phone number if not provided
+        phone: phone ? phone.trim() : '+1234567890', // Also store in agentProfile for agent-specific functionality
         brokerage: 'OnlyIf Real Estate', // Default brokerage
         yearsOfExperience: 0, // Default value
         specializations: [],
@@ -399,6 +400,7 @@ const createAgent = async (req, res) => {
       id: newAgent._id,
       name: newAgent.name,
       email: newAgent.email,
+      phone: newAgent.phone, // Include phone in response
       role: newAgent.role,
       isActive: newAgent.isActive,
       experience: newAgent.experience,

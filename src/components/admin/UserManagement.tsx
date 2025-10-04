@@ -34,7 +34,7 @@ export default function UserManagement({ userRole }: UserManagementProps) {
         q: searchQuery,
         sort: sortBy,
         page: currentPage,
-        limit: 10,
+        limit: 100,
       });
       if (response.success) {
         setUsers(response.data.users);

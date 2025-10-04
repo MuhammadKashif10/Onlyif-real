@@ -66,16 +66,43 @@ export const sellerApi = {
       if (params?.limit) queryParams.append('limit', params.limit.toString());
       if (params?.status) queryParams.append('status', params.status);
       
-      const response = await apiClient.get(`/sellers/${sellerId}/listings?${queryParams}`);
+      const qs = queryParams.toString();
+      const response = await apiClient.get(`/sellers/${sellerId}/listings${qs ? `?${qs}` : ''}`);
+      
       return {
-        data: response.data.data,
-        meta: response.data.meta
+        data: response.data || [],
+        meta: response.meta || {}
       };
     } catch (error) {
       console.error('Error fetching seller listings:', error);
       throw new Error('Failed to fetch seller listings');
     }
-  }
+  },
+
+  // Add a method specifically for getting seller properties (filtered by seller ID)
+  async getProperties(params: { sellerId: string }): Promise<{ data: Property[]; meta: any }> {
+    try {
+      const response = await apiClient.get(`/sellers/properties?sellerId=${params.sellerId}`);
+      return {
+        data: response.data.data || response.data.properties || response.data || [],
+        meta: response.data.meta || {}
+      };
+    } catch (error) {
+      console.error('Error fetching seller properties:', error);
+      throw new Error('Failed to fetch seller properties');
+    }
+  },
 };
 
 export default sellerApi;
+
+export async function getSellerListings(sellerId: string) {
+  try {
+    const response = await apiClient.get(`/api/sellers/${sellerId}/listings`);
+    // Directly return the array of properties
+    return response.data.data;
+  } catch (error) {
+    console.error("Error fetching seller listings:", error);
+    throw error;
+  }
+}

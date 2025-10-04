@@ -352,7 +352,8 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
 
   // Load initial data
   useEffect(() => {
-    loadProperties();
+    // For Browse page, only load active properties
+    loadProperties({ status: 'active' });
     loadFeaturedProperties();
   }, []);
 

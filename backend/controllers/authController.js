@@ -4,8 +4,10 @@ const bcrypt = require('bcryptjs');
 const { successResponse, errorResponse } = require('../utils/responseFormatter');
 
 // Generate JWT Token
+// function generateToken()
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
+  const normalizedId = typeof id === 'string' ? id : id?.toString?.() ?? String(id);
+  return jwt.sign({ id: normalizedId }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRE || '30d',
   });
 };
@@ -13,6 +15,7 @@ const generateToken = (id) => {
 // @desc    Register user
 // @route   POST /api/auth/register
 // @access  Public
+// function register()
 const register = async (req, res) => {
   try {
     const { firstName, lastName, email, password, role, phone, brokerage, yearsOfExperience, specialization } = req.body;
@@ -62,7 +65,8 @@ const register = async (req, res) => {
       name: fullName,
       email: email.toLowerCase().trim(),
       password,
-      role: userRole
+      role: userRole,
+      phone: phone ? phone.trim() : undefined
     };
 
     // Create user
@@ -74,10 +78,11 @@ const register = async (req, res) => {
       successResponse(
         {
           user: {
-            id: user._id,
+            id: user._id.toString(),
             name: user.name,
             email: user.email,
-            role: user.role
+            role: user.role,
+            phone: user.phone
           },
           token
         },

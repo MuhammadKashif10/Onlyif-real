@@ -24,6 +24,7 @@ interface CreateAgentData {
   name: string;
   email: string;
   password: string;
+  phone: string;
   experience: string;
   location: string;
 }
@@ -46,6 +47,7 @@ export default function AgentsPage() {
     name: '',
     email: '',
     password: '',
+    phone: '',
     experience: '',
     location: ''
   });
@@ -146,6 +148,12 @@ export default function AgentsPage() {
       errors.password = 'Password must be at least 8 characters long';
     }
     
+    if (!createAgentData.phone.trim()) {
+      errors.phone = 'Phone number is required';
+    } else if (!/^[\+]?[1-9][\d]{0,15}$/.test(createAgentData.phone.replace(/[\s\-\(\)]/g, ''))) {
+      errors.phone = 'Please enter a valid phone number';
+    }
+    
     // Experience and location are optional, so no validation needed
     
     setCreateAgentErrors(errors);
@@ -153,7 +161,7 @@ export default function AgentsPage() {
   };
 
   const resetCreateAgentForm = () => {
-    setCreateAgentData({ name: '', email: '', password: '', experience: '', location: '' });
+    setCreateAgentData({ name: '', email: '', password: '', phone: '', experience: '', location: '' });
     setCreateAgentErrors({});
   };
 
@@ -174,7 +182,7 @@ export default function AgentsPage() {
         id: response.data.id,
         name: response.data.name,
         email: response.data.email,
-        phone: '',
+        phone: response.data.phone || createAgentData.phone,
         licenseNumber: '',
         status: 'approved',
         joinedDate: new Date().toISOString(),
@@ -488,6 +496,25 @@ export default function AgentsPage() {
                   />
                   {createAgentErrors.email && (
                     <p className="text-red-500 text-sm mt-1">{createAgentErrors.email}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="agentPhone" className="block text-sm font-medium text-gray-700 mb-1">
+                    Phone Number *
+                  </label>
+                  <input
+                    type="tel"
+                    id="agentPhone"
+                    value={createAgentData.phone}
+                    onChange={(e) => setCreateAgentData({ ...createAgentData, phone: e.target.value })}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      createAgentErrors.phone ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Enter agent's phone number"
+                  />
+                  {createAgentErrors.phone && (
+                    <p className="text-red-500 text-sm mt-1">{createAgentErrors.phone}</p>
                   )}
                 </div>
 

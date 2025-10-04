@@ -365,12 +365,62 @@ const deleteProperty = async (req, res) => {
       );
     }
 
-    // Soft delete
-    property.isDeleted = true;
-    await property.save();
+    // Import required models for cascading deletes
+    const CashOffer = require('../models/CashOffer');
+    const MessageThread = require('../models/MessageThread');
+    const BuyerNotification = require('../models/BuyerNotification');
+    const Notification = require('../models/Notification');
+    const Purchase = require('../models/Purchase');
+    const Transaction = require('../models/Transaction');
+    const Inspection = require('../models/Inspection');
+    const Addon = require('../models/Addon');
+    const User = require('../models/User');
+    const BuyerProfile = require('../models/BuyerProfile');
+
+    // Perform cascading deletes for all related documents
+    await Promise.all([
+      // Delete cash offers for this property
+      CashOffer.deleteMany({ property: id }),
+      
+      // Delete message threads related to this property
+      MessageThread.deleteMany({ property: id }),
+      
+      // Delete buyer notifications for this property
+      BuyerNotification.deleteMany({ property: id }),
+      
+      // Delete notifications related to this property
+      Notification.deleteMany({ property: id }),
+      
+      // Delete purchases for this property
+      Purchase.deleteMany({ property: id }),
+      
+      // Delete transactions for this property
+      Transaction.deleteMany({ property: id }),
+      
+      // Delete inspections for this property
+      Inspection.deleteMany({ property: id }),
+      
+      // Delete addons for this property
+      Addon.deleteMany({ property: id }),
+      
+      // Remove property from user favorites
+      User.updateMany(
+        { 'favorites': id },
+        { $pull: { favorites: id } }
+      ),
+      
+      // Remove property from buyer profiles
+      BuyerProfile.updateMany(
+        { 'favoriteProperties': id },
+        { $pull: { favoriteProperties: id } }
+      )
+    ]);
+
+    // Finally, delete the property itself (hard delete)
+    await Property.findByIdAndDelete(id);
 
     res.json(
-      successResponse(null, 'Property deleted successfully')
+      successResponse(null, 'Property and all related data deleted successfully')
     );
   } catch (error) {
     console.error('Error deleting property:', error);

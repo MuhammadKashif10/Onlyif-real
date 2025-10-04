@@ -3,10 +3,10 @@ import { NextRequest, NextResponse } from 'next/server';
 // GET /api/seller/:id/menu
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { _id: string } }
 ) {
   try {
-    const sellerId = params.id;
+    const sellerId = params._id;
     
     // In a real application, you would:
     // 1. Verify the seller's authentication
