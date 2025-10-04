@@ -105,6 +105,7 @@ const getSellerOverview = async (req, res) => {
 // @desc    Get seller's properties with detailed information
 // @route   GET /api/seller/:id/listings
 // @access  Private (Seller only)
+// getSellerListings
 const getSellerListings = async (req, res) => {
   try {
     const sellerId = req.params.id;
@@ -128,22 +129,40 @@ const getSellerListings = async (req, res) => {
     const skip = (page - 1) * limit;
     const status = req.query.status;
 
+    // Use ObjectId and query agents instead of assignedAgent
+    const sellerObjectId = new mongoose.Types.ObjectId(sellerId);
     const filter = {
-      owner: sellerId,
+      owner: sellerObjectId,
       isDeleted: false,
     };
-
     if (status) {
       filter.status = status;
     }
 
     const totalItems = await Property.countDocuments(filter);
 
-    const properties = await Property.find(filter)
-      .select('title address price status images dateListed viewCount owner')
+    // Populate agents.agent, and then shape assignedAgent for UI
+    const propertiesRaw = await Property.find(filter)
+      .select('title address price status images dateListed viewCount owner agents beds baths squareMeters propertyType')
+      .populate('agents.agent', 'name email avatar phone')
       .sort({ dateListed: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
+
+    const properties = propertiesRaw.map((p) => {
+      const activeAgentEntry = Array.isArray(p.agents) ? p.agents.find((a) => a.isActive) : null;
+  
+      // Compute size in sqft when only squareMeters is available
+      const sizeSqft = p.size ?? (p.squareMeters ? Math.round(Number(p.squareMeters) * 10.7639) : undefined);
+  
+      return {
+        ...p,
+        size: sizeSqft,
+        assignedAgent: activeAgentEntry?.agent || null,
+        assignedDate: activeAgentEntry?.assignedAt || null,
+      };
+    });
 
     return res.status(200).json({
       success: true,

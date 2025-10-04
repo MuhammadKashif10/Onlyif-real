@@ -1,6 +1,8 @@
 const mongoose = require('mongoose');
 const env = require('./env'); // import your env.js
 
+mongoose.set('strictPopulate', false);
+
 const connectDB = async () => {
   console.log("🚀 ~ connectDB ~ env.MONGO_URI:", env.MONGO_URI)
   try {

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+// Imports at top of file
+import { useState, useEffect } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import Button from '@/components/reusable/Button';
 import Badge from '@/components/reusable/Badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/reusable/EnhancedCard';
@@ -13,6 +14,10 @@ import { useRouter } from 'next/navigation';
 import { getSafeImageUrl } from '@/utils/imageUtils';
 import { useAuth } from '@/hooks/useAuth';
 import { sellerApi } from '@/api/seller';
+import { propertiesApi } from '@/api/properties';
+// import section
+import EditPropertyModal from '@/components/seller/EditPropertyModal';
+import ViewPropertyModal from '@/components/seller/ViewPropertyModal';
 
 export default function SellerListingsPage() {
   const { user, isLoading } = useAuth();
@@ -20,19 +25,26 @@ export default function SellerListingsPage() {
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
 
-  // Authentication check - redirect if not authenticated or not a seller
-  if (!isLoading) {
-    if (!user) {
-      router.push("/signin");
-      return null;
+  // REMOVE this early-return block:
+  // if (!isLoading) {
+  //   if (!user) {
+  //     router.push("/signin");
+  //     return null;
+  //   }
+  //   // if (user.role !== "seller") {
+  //   //   router.push("/signin");
+  //   //   return null;
+  //   // }
+  // }
+  
+  // Redirect via effect (hooks stay in consistent order)
+  useEffect(() => {
+    if (!isLoading && (!user || user.role !== 'seller')) {
+      router.push('/signin');
     }
-    // if (user.role !== "seller") {
-    //   router.push("/signin");
-    //   return null;
-    // }
-  }
+  }, [isLoading, user, router]);
 
-  // Fetch seller properties using React Query
+  // Fetch seller properties using React Query (unconditional hook)
   const {
     data: propertiesData,
     isLoading: propertiesLoading,
@@ -42,78 +54,40 @@ export default function SellerListingsPage() {
     queryKey: ["seller-properties", user?.id],
     queryFn: async () => {
       if (!user?.id) throw new Error('User ID is required');
-      console.log('Fetching properties for seller ID:', user.id);
       const result = await sellerApi.getSellerListings(user.id);
-      console.log('API Response:', result);
       return result;
     },
     enabled: !!user && user.role === "seller",
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 
-  // Show loading spinner while authentication is being resolved
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  // Normalize properties data to an array
+  const properties =
+    Array.isArray(propertiesData)
+      ? propertiesData
+      : Array.isArray((propertiesData as any)?.data)
+      ? (propertiesData as any).data
+      : [];
 
-  // Don't render anything if user is not authenticated or not a seller
-  if (!user || user.role !== "seller") {
-    return null;
-  }
-
-  // Show loading spinner while properties are being fetched
-  if (propertiesLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading your properties...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Handle error state
-  if (propertiesError) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600 mb-4">Error loading properties: {propertiesError.message}</p>
-          <Button onClick={() => refetch()}>Try Again</Button>
-        </div>
-      </div>
-    );
-  }
-
-  // Get properties from the API response
-  const properties = Array.isArray(propertiesData?.data) ? propertiesData.data : [];
-  console.log('Properties to display:', properties);
-  console.log('Properties count:', properties.length);
-
-  const handleAssignAgent = (propertyId: string) => {
-    setSelectedPropertyId(propertyId);
-    setIsAssignModalOpen(true);
-  };
-
-  const handleAgentAssigned = (agent: Agent) => {
-    if (selectedPropertyId) {
-      // Refetch properties to get updated data
+  // Single delete mutation (remove any earlier duplicates)
+  const { mutateAsync: deletePropertyMutation, isLoading: isDeleting } = useMutation({
+    mutationFn: async (id: string) => {
+      await propertiesApi.deleteProperty(id);
+    },
+    onSuccess: () => {
       refetch();
-    }
-    setIsAssignModalOpen(false);
-    setSelectedPropertyId(null);
-  };
+    },
+  });
 
-  const handleRemoveAgent = (propertyId: string) => {
-    // Refetch properties to get updated data
-    refetch();
+  const handleDelete = async (id?: string) => {
+    if (!id) return;
+    const confirmed = window.confirm('Are you sure you want to delete this property?');
+    if (!confirmed) return;
+    try {
+      await deletePropertyMutation(id);
+    } catch (err: any) {
+      alert(err?.message || 'Failed to delete property');
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -127,6 +101,47 @@ export default function SellerListingsPage() {
     
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.private;
     return <Badge color={config.color}>{config.text}</Badge>;
+  };
+
+  // Define agent handlers BEFORE JSX usage
+  const handleAssignAgent = (id?: string) => {
+    if (!id) return;
+    setSelectedPropertyId(id);
+    setIsAssignModalOpen(true);
+  };
+
+  const handleAgentAssigned = (agent: Agent) => {
+    setIsAssignModalOpen(false);
+    setSelectedPropertyId(null);
+    refetch();
+  };
+
+  // Add edit modal state and handlers
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingProperty, setEditingProperty] = useState<any | null>(null);
+  const handleEditOpen = (property: any) => {
+    setEditingProperty(property);
+    setIsEditModalOpen(true);
+  };
+  const handleEditClose = () => {
+    setIsEditModalOpen(false);
+    setEditingProperty(null);
+  };
+  const handlePropertyUpdated = () => {
+    handleEditClose();
+    refetch();
+  };
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewingProperty, setViewingProperty] = useState<any | null>(null);
+
+  const handleViewOpen = (property: any) => {
+    setViewingProperty(property);
+    setIsViewModalOpen(true);
+  };
+
+  const handleViewClose = () => {
+    setIsViewModalOpen(false);
+    setViewingProperty(null);
   };
 
   return (
@@ -218,12 +233,14 @@ export default function SellerListingsPage() {
                   </div>
 
                   {/* Assigned Agent */}
-                  {property.assignedAgent || property.agents?.length > 0 ? (
-                    <AssignedAgentCard
-                      agent={property.assignedAgent || property.agents?.[0]?.agent}
-                      assignedAt={property.assignedAt || property.agents?.[0]?.assignedAt}
-                      onRemove={() => handleRemoveAgent(property._id || property.id)}
-                    />
+                  {property.assignedAgent ? (
+                    <div className="mb-4">
+                      <AssignedAgentCard
+                        agent={property.assignedAgent}
+                        assignedAt={property.assignedDate || property.dateListed || new Date().toISOString()}
+                        propertyId={property._id || property.id}
+                      />
+                    </div>
                   ) : (
                     <div className="mb-4">
                       <Button
@@ -233,22 +250,28 @@ export default function SellerListingsPage() {
                         className="w-full"
                       >
                         <UserPlus className="h-4 w-4 mr-2" />
-                        Assign Agent
+                        No agent assign
                       </Button>
                     </div>
                   )}
 
                   {/* Action Buttons */}
-                  <div className="flex space-x-2">
-                    <Button variant="outline" size="sm" className="flex-1">
+                  <div className="mt-4 flex space-x-2">
+                    <Button variant="outline" size="sm" className="flex-1" onClick={() => handleViewOpen(property)}>
                       <Eye className="h-4 w-4 mr-1" />
                       View
                     </Button>
-                    <Button variant="outline" size="sm" className="flex-1">
+                    <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditOpen(property)}>
                       <Edit className="h-4 w-4 mr-1" />
                       Edit
                     </Button>
-                    <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-red-600 hover:text-red-700"
+                      onClick={() => handleDelete(property._id || property.id)}
+                      disabled={isDeleting}
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -265,9 +288,28 @@ export default function SellerListingsPage() {
             setIsAssignModalOpen(false);
             setSelectedPropertyId(null);
           }}
-          onAssign={handleAgentAssigned}
-          propertyId={selectedPropertyId}
+          onAgentAssigned={handleAgentAssigned}
+          propertyId={(selectedPropertyId || '')}
         />
+
+        {/* Edit Property Modal */}
+        {isEditModalOpen && (
+          <EditPropertyModal
+            isOpen={isEditModalOpen}
+            onClose={handleEditClose}
+            property={editingProperty}
+            onUpdated={handlePropertyUpdated}
+          />
+        )}
+
+        {/* View Property Modal */}
+        {isViewModalOpen && viewingProperty && (
+          <ViewPropertyModal
+            isOpen={isViewModalOpen}
+            onClose={handleViewClose}
+            property={viewingProperty}
+          />
+        )}
       </div>
     </div>
   );

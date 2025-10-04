@@ -24,6 +24,10 @@ export default function AssignedAgentCard({ agent, assignedAt, propertyId }: Ass
       day: 'numeric'
     });
   };
+  // Safeguard missing fields from backend
+  const specializations = Array.isArray(agent?.specializations) ? agent.specializations : [];
+  const safeName = agent?.name || 'Agent';
+  const safeAvatar = agent?.avatar || '';
 
   return (
     <Card className="border-green-200 bg-green-50">
@@ -36,14 +40,14 @@ export default function AssignedAgentCard({ agent, assignedAt, propertyId }: Ass
       <CardContent>
         <div className="flex items-start gap-4">
           <Avatar className="h-16 w-16">
-            <AvatarImage src={agent.avatar} alt={agent.name} />
-            <AvatarFallback>{agent.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+            <AvatarImage src={safeAvatar} alt={safeName} />
+            <AvatarFallback>{safeName.split(' ').map(n => n[0]).join('')}</AvatarFallback>
           </Avatar>
           
           <div className="flex-1">
             <div className="flex items-start justify-between">
               <div>
-                <h3 className="font-semibold text-lg">{agent.name}</h3>
+                <h3 className="font-semibold text-lg">{safeName}</h3>
                 <p className="text-gray-600">{agent.title}</p>
                 <div className="flex items-center gap-2 mt-1">
                   <div className="flex items-center gap-1">
@@ -74,7 +78,7 @@ export default function AssignedAgentCard({ agent, assignedAt, propertyId }: Ass
             <p className="text-sm text-gray-600 mt-2">{agent.bio}</p>
             
             <div className="flex flex-wrap gap-2 mt-3">
-              {agent.specializations.slice(0, 3).map((spec) => (
+              {specializations.slice(0, 3).map((spec) => (
                 <Badge key={spec} variant="outline" className="text-xs">
                   {spec}
                 </Badge>

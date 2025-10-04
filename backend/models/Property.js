@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 
+// Property schema definition (add missing assignedAgent field)
 const propertySchema = new mongoose.Schema({
   // Required owner field (fixed)
   owner: {
@@ -236,6 +237,7 @@ const propertySchema = new mongoose.Schema({
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
     },
+    assignedAgent: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     isActive: {
       type: Boolean,
       default: true
