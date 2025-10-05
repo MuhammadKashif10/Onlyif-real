@@ -196,86 +196,74 @@ export default function SellerListingsPage() {
                   <p className="text-gray-600 text-sm">
                     {property.address?.street || property.address}, {property.address?.city || ''}, {property.address?.state || ''}
                   </p>
-                  <p className="text-2xl font-bold text-blue-600">
-                    ${property.price?.toLocaleString()}
-                  </p>
+                  <div className="mt-3 flex items-center justify-between">
+                    <p className="text-2xl font-bold text-blue-600">
+                      ${property.price?.toLocaleString()}
+                    </p>
+                    <div className="text-right">
+                      <p className="text-xs text-gray-700 font-bold">Days Listed</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        {property.daysOnMarket ||
+                          (property.dateListed
+                            ? Math.floor(
+                                (new Date().getTime() - new Date(property.dateListed).getTime()) /
+                                (1000 * 3600 * 24)
+                              )
+                            : 0)}
+                      </p>
+                    </div>
+                  </div>
                 </CardHeader>
 
                 <CardContent>
                   {/* Property Stats */}
-                  <div className="grid grid-cols-3 gap-4 mb-4 text-center">
-                    <div>
-                      <div className="flex items-center justify-center mb-1">
-                        <Eye className="h-4 w-4 text-gray-400 mr-1" />
-                        <span className="text-sm font-medium">{property.views || property.viewCount || 0}</span>
-                      </div>
-                      <p className="text-xs text-gray-500">Views</p>
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-center mb-1">
-                        <span className="text-sm font-medium">{property.inquiries || property.unlocks || 0}</span>
-                      </div>
-                      <p className="text-xs text-gray-500">Inquiries</p>
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-center mb-1">
-                        <span className="text-sm font-medium">
-                          {property.daysOnMarket || 
-                            (property.dateListed ? 
-                              Math.floor((new Date().getTime() - new Date(property.dateListed).getTime()) / (1000 * 3600 * 24)) 
-                              : 0
-                            )
-                          }
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-500">Days Listed</p>
-                    </div>
+                  {/* Removed: Views and Inquiries; Days Listed now shown next to price */}
+                  {/* Previously grid with Views/Inquiries/Days Listed */}
+                </CardContent>
+
+                {/* Assigned Agent */}
+                {property.assignedAgent ? (
+                  <div className="mb-4">
+                    <AssignedAgentCard
+                      agent={property.assignedAgent}
+                      assignedAt={property.assignedDate || property.dateListed || new Date().toISOString()}
+                      propertyId={property._id || property.id}
+                    />
                   </div>
-
-                  {/* Assigned Agent */}
-                  {property.assignedAgent ? (
-                    <div className="mb-4">
-                      <AssignedAgentCard
-                        agent={property.assignedAgent}
-                        assignedAt={property.assignedDate || property.dateListed || new Date().toISOString()}
-                        propertyId={property._id || property.id}
-                      />
-                    </div>
-                  ) : (
-                    <div className="mb-4">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleAssignAgent(property._id || property.id)}
-                        className="w-full"
-                      >
-                        <UserPlus className="h-4 w-4 mr-2" />
-                        No agent assign
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Action Buttons */}
-                  <div className="mt-4 flex space-x-2">
-                    <Button variant="outline" size="sm" className="flex-1" onClick={() => handleViewOpen(property)}>
-                      <Eye className="h-4 w-4 mr-1" />
-                      View
-                    </Button>
-                    <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditOpen(property)}>
-                      <Edit className="h-4 w-4 mr-1" />
-                      Edit
-                    </Button>
+                ) : (
+                  <div className="mb-4">
                     <Button
                       variant="outline"
                       size="sm"
-                      className="text-red-600 hover:text-red-700"
-                      onClick={() => handleDelete(property._id || property.id)}
-                      disabled={isDeleting}
+                      onClick={() => handleAssignAgent(property._id || property.id)}
+                      className="w-full"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      No agent assign
                     </Button>
                   </div>
-                </CardContent>
+                )}
+
+                {/* Action Buttons */}
+                <div className="mt-4 flex space-x-2">
+                  <Button variant="outline" size="sm" className="flex-1" onClick={() => handleViewOpen(property)}>
+                    <Eye className="h-4 w-4 mr-1" />
+                    View
+                  </Button>
+                  <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditOpen(property)}>
+                    <Edit className="h-4 w-4 mr-1" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-red-600 hover:text-red-700"
+                    onClick={() => handleDelete(property._id || property.id)}
+                    disabled={isDeleting}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </Card>
             ))}
           </div>

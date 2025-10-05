@@ -5,6 +5,7 @@ import Modal from '@/components/reusable/Modal';
 import Button from '@/components/reusable/Button';
 import AssignedAgentCard from '@/components/seller/AssignedAgentCard';
 import { getSafeImageUrl } from '@/utils/imageUtils';
+import { Bed, Bath } from 'lucide-react';
 
 interface ViewPropertyModalProps {
   isOpen: boolean;
@@ -71,11 +72,15 @@ export default function ViewPropertyModal({
         {/* Stats grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-gray-50 p-3 rounded-md">
-            <div className="text-sm text-gray-500">Bedrooms</div>
+            <div className="flex items-center justify-start">
+              <Bed className="w-6 h-6 text-blue-600" aria-label="Bedrooms" />
+            </div>
             <div className="text-lg font-semibold text-gray-900">{bedrooms ?? '—'}</div>
           </div>
           <div className="bg-gray-50 p-3 rounded-md">
-            <div className="text-sm text-gray-500">Bathrooms</div>
+            <div className="flex items-center justify-start">
+              <Bath className="w-6 h-6 text-teal-600" aria-label="Bathrooms" />
+            </div>
             <div className="text-lg font-semibold text-gray-900">{bathrooms ?? '—'}</div>
           </div>
           <div className="bg-gray-50 p-3 rounded-md">
@@ -94,10 +99,7 @@ export default function ViewPropertyModal({
             <div className="text-sm text-gray-500">Type</div>
             <div className="text-lg font-semibold text-gray-900">{propertyType ?? '—'}</div>
           </div>
-          <div className="bg-gray-50 p-3 rounded-md">
-            <div className="text-sm text-gray-500">Views</div>
-            <div className="text-lg font-semibold text-gray-900">{property?.viewCount ?? 0}</div>
-          </div>
+          {/* Removed: Views container */}
         </div>
 
         {/* Assigned Agent */}
