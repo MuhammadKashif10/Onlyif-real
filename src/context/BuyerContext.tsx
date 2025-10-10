@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { buyerApi, SavedProperty, ViewedProperty, ScheduledViewing, ActiveOffer } from '@/api/buyer';
+import { Property } from '@/types/api';
 
 interface BuyerData {
   name: string;
@@ -46,6 +47,7 @@ interface BuyerContextType {
   loading: boolean;
   error: string | null;
   fetchBuyerData: () => Promise<void>;
+  unlockedProperties: Property[];
 }
 
 const initialBuyerData: BuyerData = {
@@ -77,6 +79,7 @@ export const BuyerProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [unlockedProperties, setUnlockedProperties] = useState<Property[]>([]);
 
   // Registration flow methods
   const updateBuyerData = (data: Partial<BuyerData>) => {
@@ -126,7 +129,15 @@ export const BuyerProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       setError(null);
 
       // Fetch all buyer data in parallel
-      const [savedPropsRes, viewedPropsRes, viewingsRes, offersRes, activityRes] = await Promise.all([
+      const [
+        unlockedRes,
+        savedPropsRes,
+        viewedPropsRes,
+        viewingsRes,
+        offersRes,
+        activityRes
+      ] = await Promise.all([
+        buyerApi.getUnlockedProperties({ limit: 10 }),
         buyerApi.getSavedProperties({ limit: 10 }),
         buyerApi.getViewedProperties({ limit: 10 }),
         buyerApi.getScheduledViewings({ limit: 10 }),
@@ -134,6 +145,7 @@ export const BuyerProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         buyerApi.getRecentActivity(10)
       ]);
 
+      setUnlockedProperties(unlockedRes.properties || []);
       setSavedProperties(savedPropsRes.properties || []);
       setViewedProperties(viewedPropsRes.properties || []);
       setScheduledViewings(viewingsRes.viewings || []);
@@ -167,6 +179,7 @@ export const BuyerProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     loading,
     error,
     fetchBuyerData,
+    unlockedProperties,
   };
 
   return (

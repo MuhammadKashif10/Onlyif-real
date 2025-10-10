@@ -467,6 +467,60 @@ export const buyerApi = {
       return { success: false };
     }
   },
+
+  // Get unlocked properties
+  async getUnlockedProperties(params: { page?: number; limit?: number } = {}): Promise<{
+    properties: Property[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    try {
+      const queryParams = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, value.toString());
+        }
+      });
+  
+      const endpoint = `/buyer/unlocked-properties${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      const response = await apiClient.get(endpoint);
+  
+      // Handle both shapes:
+      // 1) { success, data: Property[], meta? }  <-- after transformResponse
+      // 2) { success, data: { data: Property[], meta? } }
+      let properties: Property[] = [];
+      let meta: any = {};
+
+      if (Array.isArray((response as any).data)) {
+        properties = (response as any).data;
+        meta = (response as any).meta || {};
+      } else if ((response as any).data && Array.isArray((response as any).data.data)) {
+        properties = (response as any).data.data;
+        meta = (response as any).data.meta || {};
+      } else if (Array.isArray(response as any)) {
+        properties = response as any;
+      }
+
+      return {
+        properties,
+        total: meta.total ?? properties.length ?? 0,
+        page: meta.page ?? params.page ?? 1,
+        limit: meta.limit ?? params.limit ?? 10,
+        totalPages: meta.totalPages ?? (meta.total && meta.limit ? Math.ceil(meta.total / meta.limit) : 1),
+      };
+    } catch (error: any) {
+      console.warn('Unlocked properties endpoint unavailable. Using empty array.', error?.message || error);
+      return {
+        properties: [],
+        total: 0,
+        page: params.page || 1,
+        limit: params.limit || 10,
+        totalPages: 0,
+      };
+    }
+  },
 };
 
 export default buyerApi;

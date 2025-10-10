@@ -53,7 +53,7 @@ interface EnhancedProperty extends Property {
   primaryImage: string | null;
 }
 
-const SellerDashboard = () => {
+function SellerDashboard() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   
@@ -347,22 +347,6 @@ const SellerDashboard = () => {
                       </button>
                     </div>
 
-                    {/* Marketing Add-ons Card */}
-                    <div className="bg-white rounded-lg shadow-md p-6 text-center hover:shadow-lg transition-shadow">
-                      <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                        <span className="text-2xl text-purple-600">📱</span>
-                      </div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Marketing Add-ons</h3>
-                      <p className="text-gray-600 text-sm mb-4">Enhance your listings with professional photography, drone footage, and more.</p>
-                      <button 
-                        onClick={handleViewAddons}
-                        disabled={isViewingAddons}
-                        className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg font-medium transition-colors disabled:opacity-50"
-                      >
-                        {isViewingAddons ? 'Loading...' : 'View Add-ons'}
-                      </button>
-                    </div>
-
                    
 
                     {/* Schedule Inspection Card */}
@@ -373,11 +357,11 @@ const SellerDashboard = () => {
                       <h3 className="text-lg font-semibold text-gray-900 mb-2">Schedule Inspection</h3>
                       <p className="text-gray-600 text-sm mb-4">Book a property inspection to get a detailed assessment.</p>
                       <button 
-                        onClick={handleScheduleInspection}
+                        onClick={() => router.push('/dashboards/seller/schedule-inspection')}
                         disabled={isSchedulingInspection}
                         className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-medium transition-colors disabled:opacity-50"
                       >
-                        {isSchedulingInspection ? 'Loading...' : 'Schedule'}
+                        {isSchedulingInspection ? 'Scheduling...' : 'Schedule'}
                       </button>
                     </div>
                   </div>

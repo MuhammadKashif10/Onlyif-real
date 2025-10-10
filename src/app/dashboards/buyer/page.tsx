@@ -22,7 +22,7 @@ export default function BuyerDashboard() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const { 
-    savedProperties, 
+    unlockedProperties,
     viewedProperties, 
     scheduledViewings, 
     activeOffers,
@@ -76,6 +76,9 @@ export default function BuyerDashboard() {
 
   const handleViewAll = (section: string) => {
     switch (section) {
+      case 'unlocked':
+        router.push('/buyer/unlocked-properties');
+        break;
       case 'saved':
         router.push('/buyer/saved-properties');
         break;
@@ -161,55 +164,16 @@ export default function BuyerDashboard() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <Heart className="h-8 w-8 text-red-500" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Saved Properties</p>
-                <p className="text-2xl font-semibold text-gray-900">{savedProperties?.length || 0}</p>
-                <p className="text-sm text-gray-500">Properties you've saved</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <Eye className="h-8 w-8 text-blue-500" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Viewed Properties</p>
-                <p className="text-2xl font-semibold text-gray-900">{viewedProperties?.length || 0}</p>
-                <p className="text-sm text-gray-500">Properties you've viewed</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <Calendar className="h-8 w-8 text-green-500" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Scheduled Viewings</p>
-                <p className="text-2xl font-semibold text-gray-900">{scheduledViewings?.length || 0}</p>
-                <p className="text-sm text-gray-500">Upcoming viewings</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <DollarSign className="h-8 w-8 text-yellow-500" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Active Offers</p>
-                <p className="text-2xl font-semibold text-gray-900">{activeOffers?.length || 0}</p>
-                <p className="text-sm text-gray-500">Pending offers</p>
+                <p className="text-sm font-medium text-gray-500">Unlock Properties</p>
+                <p className="text-2xl font-semibold text-gray-900">{unlockedProperties?.length || 0}</p>
+                <p className="text-sm text-gray-500">Properties you've unlocked</p>
               </div>
             </div>
           </div>
@@ -217,27 +181,27 @@ export default function BuyerDashboard() {
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Main Sections */}
+          {/* Left Column - keep only Unlock Properties */}
           <div className="lg:col-span-2 space-y-8">
-            {/* Saved Properties */}
+            {/* Unlock Properties */}
             <div className="bg-white rounded-lg shadow">
               <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
                 <div className="flex items-center">
                   <Heart className="h-5 w-5 text-red-500 mr-2" />
-                  <h2 className="text-lg font-semibold text-gray-900">Saved Properties</h2>
+                  <h2 className="text-lg font-semibold text-gray-900">Unlock Properties</h2>
                 </div>
                 <button 
-                  onClick={() => handleViewAll('saved')}
+                  onClick={() => handleViewAll('unlocked')}
                   className="text-blue-600 hover:text-blue-800 text-sm font-medium"
                 >
                   View All
                 </button>
               </div>
               <div className="p-6">
-                {savedProperties && savedProperties.length > 0 ? (
+                {unlockedProperties && unlockedProperties.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {savedProperties.slice(0, 4).map((property) => (
-                      <div key={property._id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                    {unlockedProperties.slice(0, 4).map((property) => (
+                      <div key={property.id || property._id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
                         <img 
                           src={property.images?.[0] || '/images/placeholder.jpg'} 
                           alt={property.title}
@@ -252,8 +216,8 @@ export default function BuyerDashboard() {
                 ) : (
                   <div className="text-center py-8">
                     <Heart className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No saved properties yet</h3>
-                    <p className="text-gray-600 mb-4">Start browsing properties and save your favorites!</p>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No unlocked properties yet</h3>
+                    <p className="text-gray-600 mb-4">Start browsing properties and unlock details!</p>
                     <button 
                       onClick={() => router.push('/browse')}
                       className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
@@ -264,164 +228,17 @@ export default function BuyerDashboard() {
                 )}
               </div>
             </div>
-
-            {/* Scheduled Viewings */}
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                <div className="flex items-center">
-                  <Calendar className="h-5 w-5 text-green-500 mr-2" />
-                  <h2 className="text-lg font-semibold text-gray-900">Scheduled Viewings</h2>
-                </div>
-                <button 
-                  onClick={() => handleViewAll('viewings')}
-                  className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                >
-                  View All
-                </button>
-              </div>
-              <div className="p-6">
-                {scheduledViewings && scheduledViewings.length > 0 ? (
-                  <div className="space-y-4">
-                    {scheduledViewings.slice(0, 3).map((viewing) => (
-                      <div key={viewing._id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div>
-                          <h3 className="font-medium text-gray-900">{viewing.property?.title}</h3>
-                          <p className="text-sm text-gray-600">{viewing.property?.address}</p>
-                          <p className="text-sm text-blue-600">{new Date(viewing.scheduledDate).toLocaleDateString()}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-medium text-gray-900">{viewing.timeSlot}</p>
-                          <span className={`inline-block px-2 py-1 text-xs rounded-full ${
-                            viewing.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                            viewing.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            {viewing.status}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No scheduled viewings</h3>
-                    <p className="text-gray-600 mb-4">Book a viewing when you find a property you like!</p>
-                    <button 
-                      onClick={() => router.push('/browse')}
-                      className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
-                    >
-                      Find Properties
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Active Offers */}
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                <div className="flex items-center">
-                  <DollarSign className="h-5 w-5 text-yellow-500 mr-2" />
-                  <h2 className="text-lg font-semibold text-gray-900">Active Offers</h2>
-                </div>
-                <button 
-                  onClick={() => handleViewAll('offers')}
-                  className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                >
-                  View All
-                </button>
-              </div>
-              <div className="p-6">
-                {activeOffers && activeOffers.length > 0 ? (
-                  <div className="space-y-4">
-                    {activeOffers.slice(0, 3).map((offer) => (
-                      <div key={offer._id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div>
-                          <h3 className="font-medium text-gray-900">{offer.property?.title}</h3>
-                          <p className="text-sm text-gray-600">{offer.property?.address}</p>
-                          <p className="text-sm text-blue-600">Offered: ${offer.offerAmount?.toLocaleString()}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm text-gray-600">{new Date(offer.createdAt).toLocaleDateString()}</p>
-                          <span className={`inline-block px-2 py-1 text-xs rounded-full ${
-                            offer.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                            offer.status === 'accepted' ? 'bg-green-100 text-green-800' :
-                            offer.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                            'bg-blue-100 text-blue-800'
-                          }`}>
-                            {offer.status}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <DollarSign className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No active offers</h3>
-                    <p className="text-gray-600 mb-4">Make an offer when you find your dream property!</p>
-                    <button 
-                      onClick={() => router.push('/browse')}
-                      className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700"
-                    >
-                      Browse Properties
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
 
-          {/* Right Column - Sidebar */}
-          <div className="space-y-8">
-            {/* Saved Searches */}
-            <SavedSearchesSection />
-            
-            {/* Recommendations */}
-            <RecommendationsSection />
-            
-            {/* Recently Viewed */}
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                <div className="flex items-center">
-                  <Eye className="h-5 w-5 text-blue-500 mr-2" />
-                  <h2 className="text-lg font-semibold text-gray-900">Recently Viewed</h2>
-                </div>
-                <button 
-                  onClick={() => handleViewAll('viewed')}
-                  className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                >
-                  View All
-                </button>
-              </div>
-              <div className="p-6">
-                {viewedProperties && viewedProperties.length > 0 ? (
-                  <div className="space-y-3">
-                    {viewedProperties.slice(0, 3).map((property) => (
-                      <div key={property._id} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50">
-                        <img 
-                          src={property.images?.[0] || '/images/placeholder.jpg'} 
-                          alt={property.title}
-                          className="w-12 h-12 object-cover rounded"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">{property.title}</p>
-                          <p className="text-sm text-gray-600 truncate">{property.address}</p>
-                          <p className="text-sm font-semibold text-blue-600">${property.price?.toLocaleString()}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-6">
-                    <Eye className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                    <p className="text-sm text-gray-600">No recently viewed properties</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          {/* Removed: Scheduled Viewings */}
+          {/* Removed: Active Offers */}
+        </div>
+
+        {/* Right Column */}
+        <div className="space-y-8">
+          <SavedSearchesSection />
+          {/* Removed: Recommended Properties */}
+          {/* Removed: Recently Viewed */}
         </div>
       </div>
 

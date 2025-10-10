@@ -30,4 +30,7 @@ router.get('/recommendations', buyerController.getRecommendations);
 // Dashboard Stats
 router.get('/dashboard-stats', buyerController.getDashboardStats);
 
+// Unlocked Properties
+router.get('/unlocked-properties', buyerController.getUnlockedProperties);
+
 module.exports = router;
